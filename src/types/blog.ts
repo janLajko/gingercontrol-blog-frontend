@@ -62,7 +62,7 @@ export interface CmsArticle {
   seo_scores: SEOScores | Record<string, unknown>;
   final_score?: number | null;
   model_used?: string | null;
-  customization: Record<string, unknown>;
+  customization: BlogCustomization | Record<string, unknown>;
   error_message?: string | null;
   created_at: string;
   updated_at: string;
@@ -88,7 +88,7 @@ export interface CmsArticlePayload {
   seo_scores?: SEOScores | Record<string, unknown>;
   final_score?: number;
   model_used?: string;
-  customization?: Record<string, unknown>;
+  customization?: BlogCustomization | Record<string, unknown>;
   error_message?: string | null;
 }
 

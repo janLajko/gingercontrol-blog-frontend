@@ -59,7 +59,7 @@ export interface CmsArticle {
   success?: boolean;
   sources_used: string[];
   source_details: Array<Record<string, unknown>>;
-  seo_scores: Record<string, unknown>;
+  seo_scores: SEOScores | Record<string, unknown>;
   final_score?: number | null;
   model_used?: string | null;
   customization: Record<string, unknown>;
@@ -85,7 +85,7 @@ export interface CmsArticlePayload {
   success?: boolean;
   sources_used?: string[];
   source_details?: Array<Record<string, unknown>>;
-  seo_scores?: Record<string, unknown>;
+  seo_scores?: SEOScores | Record<string, unknown>;
   final_score?: number;
   model_used?: string;
   customization?: Record<string, unknown>;

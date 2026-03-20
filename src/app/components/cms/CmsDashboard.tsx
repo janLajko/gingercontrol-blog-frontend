@@ -2,19 +2,25 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, Clock3, FileCheck2, FolderOpen } from "lucide-react";
+import { ArrowRight, FolderOpen, NotebookPen, Trophy } from "lucide-react";
 
-import type { CmsArticle, CmsCategory } from "@/types/blog";
+import type {
+  CmsArticleSummary,
+  CmsCategory,
+  PaginatedCmsArticlesResponse,
+} from "@/types/blog";
 
 interface DashboardState {
-  articles: CmsArticle[];
+  articles: CmsArticleSummary[];
   categories: CmsCategory[];
+  totalArticles: number;
 }
 
 export default function CmsDashboard() {
   const [state, setState] = useState<DashboardState>({
     articles: [],
     categories: [],
+    totalArticles: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,10 +45,14 @@ export default function CmsDashboard() {
         const [articles, categories] = (await Promise.all([
           articlesResponse.json(),
           categoriesResponse.json(),
-        ])) as [CmsArticle[], CmsCategory[]];
+        ])) as [PaginatedCmsArticlesResponse, CmsCategory[]];
 
         if (mounted) {
-          setState({ articles, categories });
+          setState({
+            articles: articles.articles,
+            categories,
+            totalArticles: articles.total_count,
+          });
         }
       } catch (loadError) {
         if (mounted) {
@@ -66,28 +76,31 @@ export default function CmsDashboard() {
     };
   }, []);
 
-  const publishedCount = state.articles.filter(
-    (article) => normalizeStatus(article.status) === "published",
-  ).length;
-  const draftCount = state.articles.filter(
-    (article) => normalizeStatus(article.status) !== "published",
-  ).length;
+  const averageScore =
+    state.articles.length > 0
+      ? (
+          state.articles.reduce(
+            (sum, article) => sum + Number(article.final_score || 0),
+            0,
+          ) / state.articles.length
+        ).toFixed(1)
+      : "0.0";
   const recentArticles = state.articles.slice(0, 6);
 
   return (
     <div className="space-y-8">
       <section className="grid gap-4 xl:grid-cols-3">
         <MetricCard
-          label="Published Articles"
-          value={loading ? "..." : String(publishedCount)}
+          label="Articles Indexed"
+          value={loading ? "..." : String(state.totalArticles)}
           accent="text-emerald-600"
-          icon={<FileCheck2 className="h-5 w-5" />}
+          icon={<NotebookPen className="h-5 w-5" />}
         />
         <MetricCard
-          label="Draft Queue"
-          value={loading ? "..." : String(draftCount)}
+          label="Avg Score"
+          value={loading ? "..." : averageScore}
           accent="text-amber-600"
-          icon={<Clock3 className="h-5 w-5" />}
+          icon={<Trophy className="h-5 w-5" />}
         />
         <MetricCard
           label="Category Library"
@@ -139,11 +152,10 @@ export default function CmsDashboard() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <StatusPill status={normalizeStatus(article.status)} />
-                  <SourcePill success={article.success ?? false} />
+                  <CategoryPill category={article.category} />
                 </div>
                 <p className="text-sm text-slate-500 md:text-right">
-                  {formatDate(article.updated_at)}
+                  {formatDate(article.created_at)}
                 </p>
               </Link>
             ))}
@@ -182,40 +194,12 @@ function MetricCard({
   );
 }
 
-function StatusPill({ status }: { status: string }) {
-  const normalized = status.toLowerCase();
-  const styles =
-    normalized === "published"
-      ? "bg-emerald-100 text-emerald-800"
-      : normalized === "pending_review"
-        ? "bg-amber-100 text-amber-800"
-        : "bg-slate-100 text-slate-700";
-
-  return (
-    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${styles}`}>
-      {normalized.replace("_", " ")}
-    </span>
-  );
-}
-
-function normalizeStatus(status?: string) {
-  if (status === "published") {
-    return "published";
-  }
-  if (status === "pending_review" || status === "failed") {
-    return "pending_review";
-  }
-  return "draft";
-}
-
-function SourcePill({ success }: { success: boolean }) {
+function CategoryPill({ category }: { category?: string | null }) {
   return (
     <span
-      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-        success ? "bg-violet-100 text-violet-700" : "bg-rose-100 text-rose-700"
-      }`}
+      className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700"
     >
-      {success ? "AI" : "Needs review"}
+      {category || "Unassigned"}
     </span>
   );
 }

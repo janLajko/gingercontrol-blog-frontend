@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   ImageUp,
   LoaderCircle,
+  Send,
   Save,
   Trash2,
   WandSparkles,
@@ -123,6 +124,7 @@ export default function ArticleWorkbench({
   const [loading, setLoading] = useState(mode === "edit");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadingGenerationCover, setIsUploadingGenerationCover] =
     useState(false);
@@ -349,9 +351,8 @@ export default function ArticleWorkbench({
     });
   }
 
-  async function handleSave(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isSaving) {
+  async function persistArticle(nextStatus?: ArticleStatus) {
+    if (isSaving || isPublishing) {
       return;
     }
 
@@ -368,6 +369,7 @@ export default function ArticleWorkbench({
       category: article.category || generationForm.category || undefined,
       coverImage: article.coverImage || generationForm.coverImage || undefined,
       tags: parseCommaSeparated(tagInput),
+      status: nextStatus || normalizeArticleStatus(article.status),
       customization: {
         ...generationForm.customization,
         focus_keywords: parseCommaSeparated(focusKeywordsInput),
@@ -378,7 +380,11 @@ export default function ArticleWorkbench({
     startTransition(() => {
       void (async () => {
         try {
-          setIsSaving(true);
+          if (nextStatus === "published") {
+            setIsPublishing(true);
+          } else {
+            setIsSaving(true);
+          }
           const response = await fetch(
             savedArticleId
               ? `/api/cms/articles/${savedArticleId}`
@@ -399,7 +405,9 @@ export default function ArticleWorkbench({
 
           const saved = (await response.json()) as CmsArticle;
           hydrateFromArticle(saved);
-          setMessage("Article saved.");
+          setMessage(
+            nextStatus === "published" ? "Article published." : "Article saved.",
+          );
           if (!savedArticleId) {
             router.replace(`/cms/articles/${saved.id}`);
           }
@@ -411,9 +419,19 @@ export default function ArticleWorkbench({
           );
         } finally {
           setIsSaving(false);
+          setIsPublishing(false);
         }
       })();
     });
+  }
+
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await persistArticle();
+  }
+
+  async function handlePublish() {
+    await persistArticle("published");
   }
 
   async function handleDelete() {
@@ -880,7 +898,7 @@ export default function ArticleWorkbench({
                 <button
                   type="button"
                   onClick={() => void handleDelete()}
-                  disabled={isDeleting || isSaving || isGenerating}
+                  disabled={isDeleting || isSaving || isPublishing || isGenerating}
                   className="inline-flex items-center gap-2 rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isDeleting ? (
@@ -891,10 +909,38 @@ export default function ArticleWorkbench({
                   {isDeleting ? "Deleting..." : "Delete"}
                 </button>
               ) : null}
+              {savedArticleId ? (
+                <button
+                  type="button"
+                  onClick={() => void handlePublish()}
+                  disabled={
+                    isPublishing ||
+                    isSaving ||
+                    isDeleting ||
+                    isGenerating ||
+                    !article.title ||
+                    !article.body ||
+                    article.status === "published"
+                  }
+                  className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isPublishing ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  {isPublishing
+                    ? "Publishing..."
+                    : article.status === "published"
+                      ? "Published"
+                      : "Publish"}
+                </button>
+              ) : null}
               <button
                 type="submit"
                 disabled={
                   isSaving ||
+                  isPublishing ||
                   isDeleting ||
                   isGenerating ||
                   !article.title ||
@@ -1031,6 +1077,7 @@ export default function ArticleWorkbench({
                           isUploadingEditorCover ||
                           isGenerating ||
                           isSaving ||
+                          isPublishing ||
                           isDeleting
                         }
                         className="inline-flex items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-black/20 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"

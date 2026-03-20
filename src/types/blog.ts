@@ -68,6 +68,28 @@ export interface CmsArticle {
   updated_at: string;
 }
 
+export interface CmsArticleSummary {
+  id: number;
+  slug: string;
+  title: string;
+  description: string;
+  tags: string[];
+  created_at: string;
+  final_score?: number | null;
+  cover_image?: string | null;
+  author_name?: string | null;
+  author_avatar?: string | null;
+  category?: string | null;
+}
+
+export interface PaginatedCmsArticlesResponse {
+  page: number;
+  page_limit: number;
+  total_count: number;
+  total_pages: number;
+  articles: CmsArticleSummary[];
+}
+
 export interface CmsArticlePayload {
   run_id?: string;
   keyword?: string;

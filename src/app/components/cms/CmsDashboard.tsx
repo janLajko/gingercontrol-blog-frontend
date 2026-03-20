@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, FolderOpen, NotebookPen, Trophy } from "lucide-react";
 
 import type {
+  CmsArticle,
   CmsArticleSummary,
   CmsCategory,
   PaginatedCmsArticlesResponse,
@@ -42,16 +43,17 @@ export default function CmsDashboard() {
           throw new Error("Failed to load CMS dashboard data");
         }
 
-        const [articles, categories] = (await Promise.all([
+        const [articlesPayload, categories] = (await Promise.all([
           articlesResponse.json(),
           categoriesResponse.json(),
-        ])) as [PaginatedCmsArticlesResponse, CmsCategory[]];
+        ])) as [PaginatedCmsArticlesResponse | CmsArticle[], CmsCategory[]];
 
         if (mounted) {
+          const { articles, totalArticles } = normalizeArticlesPayload(articlesPayload);
           setState({
-            articles: articles.articles,
+            articles,
             categories,
-            totalArticles: articles.total_count,
+            totalArticles,
           });
         }
       } catch (loadError) {
@@ -202,6 +204,34 @@ function CategoryPill({ category }: { category?: string | null }) {
       {category || "Unassigned"}
     </span>
   );
+}
+
+function normalizeArticlesPayload(
+  payload: PaginatedCmsArticlesResponse | CmsArticle[],
+): { articles: CmsArticleSummary[]; totalArticles: number } {
+  if (Array.isArray(payload)) {
+    return {
+      articles: payload.map((article) => ({
+        id: article.id,
+        slug: article.slug,
+        title: article.title,
+        description: article.description,
+        tags: article.tags || [],
+        created_at: article.created_at,
+        final_score: article.final_score,
+        cover_image: article.coverImage || null,
+        author_name: article.authorName || null,
+        author_avatar: article.authorAvatar || null,
+        category: article.category || null,
+      })),
+      totalArticles: payload.length,
+    };
+  }
+
+  return {
+    articles: payload.articles || [],
+    totalArticles: payload.total_count || 0,
+  };
 }
 
 function formatDate(value: string) {

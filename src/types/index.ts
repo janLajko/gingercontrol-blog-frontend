@@ -9,6 +9,9 @@ export * from './github';
 // About page component types
 export * from './about';
 
+// Billing admin API related types
+export * from './billing';
+
 // Add other type exports here as the application grows
 // export * from './community';
 // export * from './demo';

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  CreditCard,
   FileText,
   FolderTree,
   LayoutDashboard,
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/cms", label: "Dashboard", icon: LayoutDashboard },
   { href: "/cms/articles", label: "Articles", icon: FileText },
   { href: "/cms/categories", label: "Category", icon: FolderTree },
+  { href: "/cms/billing/products", label: "Billing", icon: CreditCard },
 ];
 
 export default function CmsShell({ children }: CmsShellProps) {
@@ -91,10 +93,11 @@ export default function CmsShell({ children }: CmsShellProps) {
                 </h1>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                 <QuickLink href="/cms/articles">All Articles</QuickLink>
                 <QuickLink href="/cms/articles/new">Generate Draft</QuickLink>
                 <QuickLink href="/cms/categories">Manage Categories</QuickLink>
+                <QuickLink href="/cms/billing/products">Billing Products</QuickLink>
               </div>
             </div>
 

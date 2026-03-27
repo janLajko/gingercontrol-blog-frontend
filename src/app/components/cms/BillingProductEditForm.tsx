@@ -28,6 +28,7 @@ import {
   resolveBillingAdminError,
 } from "@/app/lib/billing-admin-feedback";
 import type {
+  BillingFeaturePolicy,
   BillingGrantMode,
   BillingProductDetail,
   BillingRecurringInterval,
@@ -75,6 +76,11 @@ export default function BillingProductEditForm({
   const router = useRouter();
   const [product, setProduct] = useState<BillingProductDetail | null>(null);
   const [form, setForm] = useState<BillingProductEditFormState | null>(null);
+  const [featurePolicies, setFeaturePolicies] = useState<BillingFeaturePolicy[]>([]);
+  const [featurePoliciesLoading, setFeaturePoliciesLoading] = useState(true);
+  const [featurePoliciesError, setFeaturePoliciesError] = useState<string | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -131,6 +137,27 @@ export default function BillingProductEditForm({
   useEffect(() => {
     void loadProduct();
   }, [product_code]);
+
+  useEffect(() => {
+    async function loadFeaturePolicies() {
+      try {
+        setFeaturePoliciesLoading(true);
+        setFeaturePoliciesError(null);
+        const response = await billingAdminApiClient.listFeaturePolicies();
+        setFeaturePolicies(response.items);
+      } catch (loadError) {
+        const resolved = resolveBillingAdminError(
+          loadError,
+          "Failed to load feature_key options",
+        );
+        setFeaturePoliciesError(resolved.message);
+      } finally {
+        setFeaturePoliciesLoading(false);
+      }
+    }
+
+    void loadFeaturePolicies();
+  }, []);
 
   function updateConfigEntry(
     index: number,
@@ -383,6 +410,7 @@ export default function BillingProductEditForm({
 
   const hasActiveMismatch = product.active !== product.stripe_catalog.active;
   const subscriptionMode = product.product_type === "subscription";
+  const activeFeaturePolicies = featurePolicies.filter((policy) => policy.active);
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
@@ -560,14 +588,20 @@ export default function BillingProductEditForm({
               </div>
 
               <BillingAdminFieldError error={fieldErrors.config_json} />
-              <datalist id="billing-edit-feature-key-options">
-                <option value="simulate.run" />
-                <option value="classification.run" />
-              </datalist>
+              {featurePoliciesError ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+                  {featurePoliciesError}
+                </div>
+              ) : null}
 
               <div className="space-y-5">
                 {form.config_json.map((entry, index) => {
                   const showCredits = entry.grant_mode === "prepaid_quota";
+                  const hasMissingOption =
+                    entry.feature_key &&
+                    !activeFeaturePolicies.some(
+                      (policy) => policy.feature_key === entry.feature_key,
+                    );
 
                   return (
                     <div
@@ -599,20 +633,39 @@ export default function BillingProductEditForm({
                           label={`config_json.${index}.feature_key`}
                           error={fieldErrors[`config_json.${index}.feature_key`]}
                         >
-                          <input
+                          <select
                             value={entry.feature_key}
                             onChange={(event) =>
                               updateConfigEntry(index, {
                                 feature_key: event.target.value,
                               })
                             }
-                            list="billing-edit-feature-key-options"
+                            disabled={featurePoliciesLoading}
                             className={inputClassName(
                               Boolean(
                                 fieldErrors[`config_json.${index}.feature_key`],
                               ),
                             )}
-                          />
+                          >
+                            <option value="">
+                              {featurePoliciesLoading
+                                ? "Loading feature_key..."
+                                : "Select feature_key"}
+                            </option>
+                            {activeFeaturePolicies.map((policy) => (
+                              <option
+                                key={policy.feature_key}
+                                value={policy.feature_key}
+                              >
+                                {formatFeaturePolicyOption(policy)}
+                              </option>
+                            ))}
+                            {hasMissingOption ? (
+                              <option value={entry.feature_key}>
+                                {entry.feature_key} (inactive)
+                              </option>
+                            ) : null}
+                          </select>
                         </Field>
 
                         <Field
@@ -974,6 +1027,12 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
       </div>
     </div>
   );
+}
+
+function formatFeaturePolicyOption(policy: BillingFeaturePolicy) {
+  return policy.name
+    ? `${policy.feature_key} · ${policy.name}`
+    : policy.feature_key;
 }
 
 function inputClassName(hasError: boolean) {

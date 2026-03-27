@@ -2,6 +2,7 @@ import type {
   BillingCreateProductRequest,
   BillingAdminErrorDetail,
   BillingAdminErrorResponse,
+  BillingFeaturePolicyListResponse,
   BillingPatchProductRequest,
   BillingProduct,
   BillingProductDetail,
@@ -155,6 +156,10 @@ export function createBillingAdminApiClient(
   }
 
   return {
+    listFeaturePolicies() {
+      return request<BillingFeaturePolicyListResponse>("/feature-policies");
+    },
+
     listProducts(query?: BillingProductListQuery) {
       return request<BillingProductListResponse>(
         `/products${buildListQuery(query)}`,

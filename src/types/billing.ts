@@ -4,6 +4,8 @@ export type BillingProductType = "subscription" | "credit_pack";
 
 export type BillingGrantMode = "unlimited" | "prepaid_quota";
 
+export type BillingFeatureControlMode = "free" | "grant_required" | "blocked";
+
 export type BillingRecurringInterval = "day" | "week" | "month" | "year";
 
 export type BillingStripeSyncMode = "create" | "bind_existing";
@@ -15,6 +17,21 @@ export interface BillingProductConfigEntry {
 }
 
 export type BillingProductConfigJson = BillingProductConfigEntry[];
+
+export interface BillingFeaturePolicy {
+  feature_key: string;
+  control_mode: BillingFeatureControlMode;
+  name?: string | null;
+  description?: string | null;
+  active: boolean;
+  config_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BillingFeaturePolicyListResponse {
+  items: BillingFeaturePolicy[];
+}
 
 export interface BillingProduct {
   product_code: string;

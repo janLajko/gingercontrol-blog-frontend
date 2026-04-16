@@ -134,6 +134,16 @@ export interface CmsImageUploadResponse {
   url: string;
 }
 
+export interface CmsMediaUploadResponse {
+  success: boolean;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  gcs_uri: string;
+  url: string;
+  media_type: "image" | "video";
+}
+
 export interface SEOScores {
   title_score: number;
   meta_description_score: number;

@@ -31,6 +31,7 @@ import type {
   CmsCategory,
   CmsImageUploadResponse,
 } from "@/types/blog";
+import MarkdownEditor from "./MarkdownEditor";
 
 type ArticleStatus = "draft" | "pending_review" | "published";
 
@@ -1111,11 +1112,9 @@ export default function ArticleWorkbench({
               <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
                 <div className="min-w-0">
                   <Field label="Markdown body">
-                    <textarea
+                    <MarkdownEditor
                       value={article.body}
-                      onChange={(event) =>
-                        updateArticleField("body", event.target.value)
-                      }
+                      onChange={(val) => updateArticleField("body", val)}
                       rows={24}
                       className={`${textareaClassName} min-h-[540px] resize-y font-mono text-sm leading-7`}
                       required

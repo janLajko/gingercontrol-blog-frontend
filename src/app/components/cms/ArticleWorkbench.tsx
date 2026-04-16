@@ -31,6 +31,7 @@ import type {
   CmsCategory,
   CmsImageUploadResponse,
 } from "@/types/blog";
+import ReactMarkdown from "react-markdown";
 import MarkdownEditor from "./MarkdownEditor";
 
 type ArticleStatus = "draft" | "pending_review" | "published";
@@ -543,7 +544,7 @@ export default function ArticleWorkbench({
         </div>
       ) : null}
 
-      <div className="grid gap-6 2xl:grid-cols-[480px_1fr]">
+      <div className="space-y-6">
         <section className="rounded-[2rem] border border-black/8 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -1158,10 +1159,27 @@ export default function ArticleWorkbench({
                     <p className="mt-3 text-sm leading-7 text-slate-600">
                       {article.description || "No description yet."}
                     </p>
-                    <div className="mt-5 max-h-[380px] overflow-auto rounded-2xl border border-black/8 bg-white p-4">
-                      <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-7 text-slate-700">
-                        {article.body || "Markdown body will appear here."}
-                      </pre>
+                    <div className="prose prose-slate max-w-none mt-5 max-h-[380px] overflow-auto rounded-2xl border border-black/8 bg-white p-4">
+                      {article.body ? (
+                        <ReactMarkdown
+                          components={{
+                            img: ({ src, alt }) => (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={src}
+                                alt={alt || ""}
+                                className="max-w-full rounded-lg"
+                              />
+                            ),
+                          }}
+                        >
+                          {article.body}
+                        </ReactMarkdown>
+                      ) : (
+                        <p className="text-slate-400">
+                          Markdown body will appear here.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -32,6 +32,7 @@ import type {
   CmsImageUploadResponse,
 } from "@/types/blog";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
 import MarkdownEditor from "./MarkdownEditor";
 
 type ArticleStatus = "draft" | "pending_review" | "published";
@@ -1162,6 +1163,7 @@ export default function ArticleWorkbench({
                     <div className="prose prose-slate max-w-none mt-5 max-h-[380px] overflow-auto rounded-2xl border border-black/8 bg-white p-4">
                       {article.body ? (
                         <ReactMarkdown
+                          rehypePlugins={[rehypeRaw]}
                           components={{
                             img: ({ src, alt }) => (
                               // eslint-disable-next-line @next/next/no-img-element

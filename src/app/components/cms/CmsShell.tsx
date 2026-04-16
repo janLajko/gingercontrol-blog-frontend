@@ -8,6 +8,7 @@ import {
   FileText,
   FolderTree,
   LayoutDashboard,
+  Newspaper,
   PlusCircle,
   Sparkles,
 } from "lucide-react";
@@ -21,6 +22,7 @@ interface CmsShellProps {
 const navItems = [
   { href: "/cms", label: "Dashboard", icon: LayoutDashboard },
   { href: "/cms/articles", label: "Articles", icon: FileText },
+  { href: "/cms/news", label: "News", icon: Newspaper },
   { href: "/cms/categories", label: "Category", icon: FolderTree },
   { href: "/cms/billing/products", label: "Billing", icon: CreditCard },
 ];
@@ -68,13 +70,20 @@ export default function CmsShell({ children }: CmsShellProps) {
             </ul>
           </nav>
 
-          <div className="mt-auto px-6 pb-6">
+          <div className="mt-auto space-y-3 px-6 pb-6">
             <Link
               href="/cms/articles/new"
               className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-300 via-orange-300 to-rose-300 px-4 py-3 font-semibold text-slate-950 transition hover:brightness-105"
             >
               <PlusCircle className="h-5 w-5" />
               New Article
+            </Link>
+            <Link
+              href="/cms/news/new"
+              className="flex items-center justify-center gap-2 rounded-2xl border border-white/15 px-4 py-3 font-semibold text-white/80 transition hover:bg-white/5 hover:text-white"
+            >
+              <PlusCircle className="h-5 w-5" />
+              New News
             </Link>
           </div>
         </aside>

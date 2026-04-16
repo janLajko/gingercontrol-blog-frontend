@@ -8,7 +8,12 @@ import type { CmsArticleSummary, PaginatedCmsArticlesResponse } from "@/types/bl
 
 const PAGE_LIMIT = 20;
 
-export default function ArticlesTable() {
+interface ArticlesTableProps {
+  type?: "article" | "news";
+}
+
+export default function ArticlesTable({ type = "article" }: ArticlesTableProps) {
+  const isNews = type === "news";
   const [articles, setArticles] = useState<CmsArticleSummary[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -24,6 +29,7 @@ export default function ArticlesTable() {
       const searchParams = new URLSearchParams({
         page: String(targetPage),
         page_limit: String(PAGE_LIMIT),
+        type,
       });
 
       const response = await fetch(`/api/cms/articles?${searchParams.toString()}`, {
@@ -49,17 +55,20 @@ export default function ArticlesTable() {
 
   useEffect(() => {
     void loadArticles(1);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type]);
 
   return (
     <section className="rounded-[2rem] border border-black/8 bg-white/80 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
       <div className="flex flex-col gap-4 border-b border-black/8 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-black tracking-tight text-slate-950">
-            Article library
+            {isNews ? "News library" : "Article library"}
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Browse saved articles and jump directly into the editor.
+            {isNews
+              ? "Browse saved news and jump directly into the editor."
+              : "Browse saved articles and jump directly into the editor."}
           </p>
         </div>
         <div className="flex gap-3">
@@ -72,11 +81,11 @@ export default function ArticlesTable() {
             Refresh
           </button>
           <Link
-            href="/cms/articles/new"
+            href={isNews ? "/cms/news/new" : "/cms/articles/new"}
             className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
           >
             <PlusCircle className="h-4 w-4" />
-            New Article
+            {isNews ? "New News" : "New Article"}
           </Link>
         </div>
       </div>
@@ -95,7 +104,7 @@ export default function ArticlesTable() {
             <table className="min-w-full text-left">
               <thead className="bg-slate-950/[0.03] text-xs uppercase tracking-[0.22em] text-slate-500">
                 <tr>
-                  <th className="px-6 py-4 font-semibold">Article</th>
+                  <th className="px-6 py-4 font-semibold">{isNews ? "News" : "Article"}</th>
                   <th className="px-6 py-4 font-semibold">Category</th>
                   <th className="px-6 py-4 font-semibold">Author</th>
                   <th className="px-6 py-4 font-semibold">Score</th>
@@ -107,7 +116,7 @@ export default function ArticlesTable() {
                   <tr key={article.id} className="transition hover:bg-black/[0.02]">
                     <td className="px-6 py-5">
                       <Link
-                        href={`/cms/articles/${article.id}`}
+                        href={isNews ? `/cms/news/${article.id}` : `/cms/articles/${article.id}`}
                         className="block font-semibold text-slate-950 hover:text-slate-700"
                       >
                         {article.title}
@@ -137,7 +146,7 @@ export default function ArticlesTable() {
 
           <div className="flex flex-col gap-3 border-t border-black/8 px-6 py-5 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
             <p>
-              Page {page} of {Math.max(totalPages, 1)}. {totalCount} articles total.
+              Page {page} of {Math.max(totalPages, 1)}. {totalCount} {isNews ? "news" : "articles"} total.
             </p>
             <div className="flex items-center gap-2">
               <button

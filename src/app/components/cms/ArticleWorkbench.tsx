@@ -40,6 +40,7 @@ type ArticleStatus = "draft" | "pending_review" | "published";
 interface ArticleWorkbenchProps {
   mode: "create" | "edit";
   articleId?: number;
+  articleType?: "article" | "news";
 }
 
 interface GenerationFormState {
@@ -109,7 +110,9 @@ const defaultArticlePayload: CmsArticlePayload = {
 export default function ArticleWorkbench({
   mode,
   articleId,
+  articleType = "article",
 }: ArticleWorkbenchProps) {
+  const isNews = articleType === "news";
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [categories, setCategories] = useState<CmsCategory[]>([]);
@@ -372,6 +375,7 @@ export default function ArticleWorkbench({
       category: article.category || generationForm.category || undefined,
       coverImage: article.coverImage || generationForm.coverImage || undefined,
       tags: parseCommaSeparated(tagInput),
+      type: articleType,
       status: nextStatus || normalizeArticleStatus(article.status),
       customization: {
         ...generationForm.customization,
@@ -412,7 +416,8 @@ export default function ArticleWorkbench({
             nextStatus === "published" ? "Article published." : "Article saved.",
           );
           if (!savedArticleId) {
-            router.replace(`/cms/articles/${saved.id}`);
+            const basePath = isNews ? "/cms/news" : "/cms/articles";
+            router.replace(`${basePath}/${saved.id}`);
           }
         } catch (saveError) {
           setError(
@@ -546,6 +551,7 @@ export default function ArticleWorkbench({
       ) : null}
 
       <div className="space-y-6">
+        {!isNews && (
         <section className="rounded-[2rem] border border-black/8 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -869,6 +875,7 @@ export default function ArticleWorkbench({
             </button>
           </form>
         </section>
+        )}
 
         <form
           className="space-y-6 rounded-[2rem] border border-black/8 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur"
@@ -880,11 +887,12 @@ export default function ArticleWorkbench({
                 Editor
               </p>
               <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950">
-                Review and save article
+                {isNews ? "Review and save news" : "Review and save article"}
               </h2>
               <p className="mt-2 text-sm text-slate-600">
-                Generated content lands here first. Update the markdown body,
-                retune metadata, then save the current article record.
+                {isNews
+                  ? "Fill in the news content, set metadata, then save."
+                  : "Generated content lands here first. Update the markdown body, retune metadata, then save the current article record."}
               </p>
             </div>
             <div className="flex flex-wrap gap-3">

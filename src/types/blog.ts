@@ -63,6 +63,7 @@ export interface CmsArticle {
   final_score?: number | null;
   model_used?: string | null;
   customization: BlogCustomization | Record<string, unknown>;
+  type?: string;
   error_message?: string | null;
   created_at: string;
   updated_at: string;
@@ -80,6 +81,7 @@ export interface CmsArticleSummary {
   author_name?: string | null;
   author_avatar?: string | null;
   category?: string | null;
+  type?: string | null;
 }
 
 export interface PaginatedCmsArticlesResponse {
@@ -111,6 +113,7 @@ export interface CmsArticlePayload {
   final_score?: number;
   model_used?: string;
   customization?: BlogCustomization | Record<string, unknown>;
+  type?: string;
   error_message?: string | null;
 }
 

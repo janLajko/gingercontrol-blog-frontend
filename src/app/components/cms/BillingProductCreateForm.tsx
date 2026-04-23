@@ -191,8 +191,55 @@ export default function BillingProductCreateForm() {
     }));
   }
 
+  function updateProductFamily(product_family: BillingProductFamily) {
+    setForm((current) => ({
+      ...current,
+      product_family,
+      config_json:
+        product_family === "system"
+          ? []
+          : current.config_json.length > 0
+            ? current.config_json
+            : [createEmptyConfigJsonEntry()],
+      ...(product_family === "system"
+        ? {
+            name: current.name,
+            product_type: "credit_pack" as BillingProductType,
+            active: true,
+            sort_order: current.sort_order || "0",
+          }
+        : {}),
+    }));
+
+    setFieldErrors((current) => {
+      if (product_family !== "system") {
+        return current;
+      }
+
+      return Object.fromEntries(
+        Object.entries(current).filter(
+          ([key]) =>
+            !(
+              key === "name" ||
+              key === "product_type" ||
+              key === "sort_order" ||
+              key.startsWith("config_json.") ||
+              key === "config_json" ||
+              key.startsWith("stripe_sync.")
+            ),
+        ),
+      );
+    });
+  }
+
   function validateForm() {
     const nextErrors: Record<string, string> = {};
+    const isSystemProduct = form.product_family === "system";
+    const configEntriesForValidation = form.config_json
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) =>
+        isSystemProduct ? entry.feature_key.trim() || entry.credits.trim() : true,
+      );
 
     if (!form.product_code.trim()) {
       nextErrors.product_code = "required";
@@ -200,17 +247,17 @@ export default function BillingProductCreateForm() {
     if (!form.product_family) {
       nextErrors.product_family = "required";
     }
-    if (!form.name.trim()) {
+    if (!isSystemProduct && !form.name.trim()) {
       nextErrors.name = "required";
     }
-    if (!form.product_type) {
+    if (!isSystemProduct && !form.product_type) {
       nextErrors.product_type = "required";
     }
-    if (form.config_json.length === 0) {
+    if (!isSystemProduct && form.config_json.length === 0) {
       nextErrors.config_json = "at least one config_json entry is required";
     }
 
-    form.config_json.forEach((entry, index) => {
+    configEntriesForValidation.forEach(({ entry, index }) => {
       if (!entry.feature_key.trim()) {
         nextErrors[`config_json.${index}.feature_key`] = "required";
       }
@@ -227,13 +274,13 @@ export default function BillingProductCreateForm() {
       }
     });
 
-    if (!form.sort_order.trim()) {
+    if (!isSystemProduct && !form.sort_order.trim()) {
       nextErrors.sort_order = "required";
-    } else if (!Number.isFinite(Number(form.sort_order))) {
+    } else if (form.sort_order.trim() && !Number.isFinite(Number(form.sort_order))) {
       nextErrors.sort_order = "must be a number";
     }
 
-    if (form.stripe_sync.mode === "create") {
+    if (!isSystemProduct && form.stripe_sync.mode === "create") {
       const unitAmount = Number(form.stripe_sync.price.unit_amount);
       if (!form.stripe_sync.price.unit_amount.trim()) {
         nextErrors["stripe_sync.price.unit_amount"] = "required";
@@ -268,7 +315,7 @@ export default function BillingProductCreateForm() {
       }
     }
 
-    if (form.stripe_sync.mode === "bind_existing") {
+    if (!isSystemProduct && form.stripe_sync.mode === "bind_existing") {
       if (!form.stripe_sync.stripe_product_id.trim()) {
         nextErrors["stripe_sync.stripe_product_id"] = "required";
       }
@@ -281,6 +328,7 @@ export default function BillingProductCreateForm() {
   }
 
   function buildPayload(): BillingCreateProductRequest {
+    const isSystemProduct = form.product_family === "system";
     const stripe_sync =
       form.stripe_sync.mode === "create"
         ? form.product_type === "subscription"
@@ -322,22 +370,28 @@ export default function BillingProductCreateForm() {
             stripe_price_id: form.stripe_sync.stripe_price_id.trim(),
           };
 
-    const payload: BillingCreateProductRequest = {
-      product_code: form.product_code.trim(),
-      product_family: form.product_family,
-      name: form.name.trim(),
-      product_type: form.product_type,
-      active: form.active,
-      sort_order: Number(form.sort_order || "0"),
-      config_json: form.config_json.map((entry) => ({
+    const configEntries = form.config_json
+      .filter((entry) => entry.feature_key.trim())
+      .map((entry) => ({
         feature_key: entry.feature_key.trim(),
         grant_mode: entry.grant_mode,
         ...(entry.grant_mode === "prepaid_quota"
           ? { credits: Number(entry.credits) }
           : {}),
-      })),
-      stripe_sync,
-      ...(form.description.trim() ? { description: form.description.trim() } : {}),
+      }));
+
+    const payload: BillingCreateProductRequest = {
+      product_code: form.product_code.trim(),
+      product_family: form.product_family,
+      ...(!isSystemProduct || form.name.trim() ? { name: form.name.trim() } : {}),
+      ...(!isSystemProduct || form.description.trim()
+        ? { description: form.description.trim() || undefined }
+        : {}),
+      ...(!isSystemProduct ? { product_type: form.product_type } : {}),
+      ...(!isSystemProduct ? { active: form.active } : {}),
+      ...(!isSystemProduct ? { sort_order: Number(form.sort_order || "0") } : {}),
+      ...(configEntries.length > 0 ? { config_json: configEntries } : {}),
+      ...(!isSystemProduct ? { stripe_sync } : {}),
     };
 
     return payload;
@@ -380,6 +434,7 @@ export default function BillingProductCreateForm() {
     }
   }
 
+  const isSystemProduct = form.product_family === "system";
   const createMode = form.stripe_sync.mode === "create";
   const subscriptionMode = form.product_type === "subscription";
   const activeFeaturePolicies = featurePolicies.filter((policy) => policy.active);
@@ -462,17 +517,25 @@ export default function BillingProductCreateForm() {
             <select
               value={form.product_family}
               onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  product_family: event.target.value as BillingProductFamily,
-                }))
+                updateProductFamily(event.target.value as BillingProductFamily)
               }
               className={inputClassName(Boolean(fieldErrors.product_family))}
             >
               <option value="simulate">simulate</option>
               <option value="classification">classification</option>
+              <option value="system">system</option>
             </select>
           </Field>
+
+          {isSystemProduct ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900 lg:col-span-2">
+              `system` product supports product-code-only create. `name / config_json / stripe_sync` can all be omitted.
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900 lg:col-span-2">
+              Only `system` products support product-code-only create. Current family still requires `name`, `config_json`, and Stripe-related fields.
+            </div>
+          )}
 
           <Field label="name" error={fieldErrors.name}>
             <input
@@ -484,6 +547,9 @@ export default function BillingProductCreateForm() {
                 }))
               }
               maxLength={128}
+              placeholder={
+                isSystemProduct ? "Optional. Defaults to product_code." : undefined
+              }
               className={inputClassName(Boolean(fieldErrors.name))}
             />
           </Field>
@@ -556,7 +622,11 @@ export default function BillingProductCreateForm() {
 
       <FormSection
         title="config_json"
-        description="支持添加多条 config_json，每条都按文档约束 feature_key、grant_mode 和 credits 联动。"
+        description={
+          isSystemProduct
+            ? "system product 可留空；如果填写，会作为 manage user billing 的默认 grant 模板。"
+            : "支持添加多条 config_json，每条都按文档约束 feature_key、grant_mode 和 credits 联动。"
+        }
       >
         <div className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -574,6 +644,12 @@ export default function BillingProductCreateForm() {
           {featurePoliciesError ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
               {featurePoliciesError}
+            </div>
+          ) : null}
+
+          {form.config_json.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-black/10 px-4 py-5 text-sm text-slate-500">
+              No config_json configured. You can leave this empty for `system` products or add grant templates now.
             </div>
           ) : null}
 
@@ -696,8 +772,17 @@ export default function BillingProductCreateForm() {
 
       <FormSection
         title="stripe_sync"
-        description="支持 create 和 bind_existing 两种模式。"
+        description={
+          isSystemProduct
+            ? "system product 可不配置 Stripe。当前模式下将只写入本地 billing_product。"
+            : "支持 create 和 bind_existing 两种模式。"
+        }
       >
+        {isSystemProduct ? (
+          <div className="rounded-2xl border border-dashed border-black/10 px-4 py-5 text-sm text-slate-500">
+            Stripe sync omitted for `system` products. If you need Stripe later, edit the product after creation.
+          </div>
+        ) : (
         <div className="space-y-6">
           <Field label="stripe_sync.mode" error={fieldErrors["stripe_sync.mode"]}>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -942,6 +1027,7 @@ export default function BillingProductCreateForm() {
             </div>
           )}
         </div>
+        )}
       </FormSection>
     </form>
   );

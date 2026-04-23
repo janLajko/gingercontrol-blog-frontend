@@ -94,6 +94,7 @@ export default function BillingProductEditForm({
       setErrorMessage(null);
       setErrorCode(null);
       const data = await billingAdminApiClient.getProduct(product_code);
+      const stripeCatalog = data.stripe_catalog;
       setProduct(data);
       setForm({
         name: data.name,
@@ -110,15 +111,14 @@ export default function BillingProductEditForm({
             : [createEmptyConfigJsonEntry()],
         price_change_enabled: false,
         price_change: {
-          currency: data.stripe_catalog.currency,
-          unit_amount: String(data.stripe_catalog.unit_amount),
-          billing_scheme: data.stripe_catalog.billing_scheme || "",
+          currency: stripeCatalog?.currency || "usd",
+          unit_amount: stripeCatalog ? String(stripeCatalog.unit_amount) : "0",
+          billing_scheme: stripeCatalog?.billing_scheme || "",
           type: data.product_type === "subscription" ? "recurring" : "one_time",
-          recurring_interval:
-            data.stripe_catalog.recurring_interval || "month",
+          recurring_interval: stripeCatalog?.recurring_interval || "month",
           recurring_interval_count:
-            data.stripe_catalog.recurring_interval_count != null
-              ? String(data.stripe_catalog.recurring_interval_count)
+            stripeCatalog?.recurring_interval_count != null
+              ? String(stripeCatalog.recurring_interval_count)
               : "1",
         },
       });
@@ -408,7 +408,10 @@ export default function BillingProductEditForm({
     );
   }
 
-  const hasActiveMismatch = product.active !== product.stripe_catalog.active;
+  const hasStripeBinding = product.stripe_catalog != null;
+  const stripeCatalog = product.stripe_catalog;
+  const hasActiveMismatch =
+    hasStripeBinding && product.active !== stripeCatalog!.active;
   const subscriptionMode = product.product_type === "subscription";
   const activeFeaturePolicies = featurePolicies.filter((policy) => policy.active);
 
@@ -467,7 +470,7 @@ export default function BillingProductEditForm({
               <p className="font-semibold">本地与 Stripe 状态不一致</p>
               <p className="mt-1 text-sm">
                 local active = {String(product.active)}，stripe_catalog.active ={" "}
-                {String(product.stripe_catalog.active)}
+                {String(product.stripe_catalog?.active)}
               </p>
             </div>
           </div>
@@ -731,54 +734,61 @@ export default function BillingProductEditForm({
         title="Stripe 展示信息"
         description="当前 Stripe catalog 信息仅展示，不可编辑。"
       >
-        <div className="grid gap-5 lg:grid-cols-3">
-          <ReadonlyField
-            label="stripe_product_id"
-            value={product.stripe_catalog.stripe_product_id}
-          />
-          <ReadonlyField
-            label="stripe_price_id"
-            value={product.stripe_catalog.stripe_price_id}
-          />
-          <ReadonlyField
-            label="currency"
-            value={product.stripe_catalog.currency}
-          />
-          <ReadonlyField
-            label="unit_amount"
-            value={String(product.stripe_catalog.unit_amount)}
-          />
-          <ReadonlyField
-            label="billing_scheme"
-            value={product.stripe_catalog.billing_scheme}
-          />
-          <ReadonlyField
-            label="recurring_interval"
-            value={product.stripe_catalog.recurring_interval || "-"}
-          />
-          <ReadonlyField
-            label="recurring_interval_count"
-            value={
-              product.stripe_catalog.recurring_interval_count != null
-                ? String(product.stripe_catalog.recurring_interval_count)
-                : "-"
-            }
-          />
-          <ReadonlyField
-            label="lookup_key"
-            value={product.stripe_catalog.lookup_key || "-"}
-          />
-          <ReadonlyField
-            label="active"
-            value={String(product.stripe_catalog.active)}
-          />
-        </div>
+        {hasStripeBinding ? (
+          <div className="grid gap-5 lg:grid-cols-3">
+            <ReadonlyField
+              label="stripe_product_id"
+              value={product.stripe_catalog?.stripe_product_id || ""}
+            />
+            <ReadonlyField
+              label="stripe_price_id"
+              value={product.stripe_catalog?.stripe_price_id || ""}
+            />
+            <ReadonlyField
+              label="currency"
+              value={product.stripe_catalog?.currency || "usd"}
+            />
+            <ReadonlyField
+              label="unit_amount"
+              value={String(product.stripe_catalog?.unit_amount || 0)}
+            />
+            <ReadonlyField
+              label="billing_scheme"
+              value={product.stripe_catalog?.billing_scheme || "-"}
+            />
+            <ReadonlyField
+              label="recurring_interval"
+              value={product.stripe_catalog?.recurring_interval || "-"}
+            />
+            <ReadonlyField
+              label="recurring_interval_count"
+              value={
+                product.stripe_catalog?.recurring_interval_count != null
+                  ? String(product.stripe_catalog.recurring_interval_count)
+                  : "-"
+              }
+            />
+            <ReadonlyField
+              label="lookup_key"
+              value={product.stripe_catalog?.lookup_key || "-"}
+            />
+            <ReadonlyField
+              label="active"
+              value={String(product.stripe_catalog?.active)}
+            />
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-black/10 px-4 py-5 text-sm text-slate-500">
+            This product is local-only and is not bound to Stripe.
+          </div>
+        )}
       </FormSection>
 
       <FormSection
         title="Stripe 价格变更"
         description="编辑页必须明确区分只改展示信息和改价格。"
       >
+        {hasStripeBinding ? (
         <div className="space-y-6">
           <label className="flex items-start gap-3 rounded-2xl border border-black/10 bg-white px-4 py-4">
             <input
@@ -971,6 +981,11 @@ export default function BillingProductEditForm({
             </div>
           )}
         </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-black/10 px-4 py-5 text-sm text-slate-500">
+            Stripe price change is unavailable because this product has no Stripe binding.
+          </div>
+        )}
       </FormSection>
     </form>
   );

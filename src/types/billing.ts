@@ -1,4 +1,4 @@
-export type BillingProductFamily = "simulate" | "classification";
+export type BillingProductFamily = "simulate" | "classification" | "system";
 
 export type BillingProductType = "subscription" | "credit_pack";
 
@@ -68,7 +68,7 @@ export interface StripeCatalogInfo {
 
 export interface BillingProductDetail extends BillingProduct {
   grant_preview: GrantPreview[];
-  stripe_catalog: StripeCatalogInfo;
+  stripe_catalog?: StripeCatalogInfo | null;
 }
 
 export interface BillingProductListResponse {
@@ -127,13 +127,13 @@ export type BillingCreateStripeSync =
 export interface BillingCreateProductRequest {
   product_code: string;
   product_family: BillingProductFamily;
-  name: string;
+  name?: string;
   description?: string;
-  product_type: BillingProductType;
-  active: boolean;
-  sort_order: number;
-  config_json: BillingProductConfigJson;
-  stripe_sync: BillingCreateStripeSync;
+  product_type?: BillingProductType;
+  active?: boolean;
+  sort_order?: number;
+  config_json?: BillingProductConfigJson;
+  stripe_sync?: BillingCreateStripeSync;
 }
 
 export interface BillingUpdateStripePriceChangeDisabled {
@@ -201,4 +201,90 @@ export interface BillingAdminErrorDetail {
 
 export interface BillingAdminErrorResponse {
   detail: BillingAdminErrorDetail;
+}
+
+export interface BillingUserOption {
+  user_id: number;
+  email: string;
+  name?: string | null;
+  company_name?: string | null;
+}
+
+export interface BillingUserSearchResponse {
+  items: BillingUserOption[];
+}
+
+export interface BillingManualGrantInput {
+  feature_key: string;
+  grant_mode: BillingGrantMode;
+  quantity?: number | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+}
+
+export interface BillingCreateManualPurchaseRequest {
+  product_code: string;
+  purchase_starts_at?: string | null;
+  purchase_ends_at?: string | null;
+  reason?: string;
+  contract_no?: string;
+  note?: string;
+  grants: BillingManualGrantInput[];
+}
+
+export interface BillingGrantSnapshot {
+  grant_id: number;
+  purchase_id: number;
+  feature_key: string;
+  grant_mode: BillingGrantMode;
+  granted_quantity?: number | null;
+  remaining_quantity?: number | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  status: "active" | "expired" | "consumed" | "canceled";
+  config_json: Record<string, unknown>;
+}
+
+export interface BillingPurchaseSnapshot {
+  purchase_id: number;
+  product_code: string;
+  product_name: string;
+  product_family: BillingProductFamily;
+  purchase_type: string;
+  status: "pending" | "active" | "expired" | "canceled" | "consumed" | "failed";
+  purchased_at: string;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  source?: string | null;
+  reason?: string | null;
+  contract_no?: string | null;
+  note?: string | null;
+  grants: BillingGrantSnapshot[];
+}
+
+export interface BillingFeatureBalanceSummary {
+  feature_key: string;
+  active_unlimited: boolean;
+  total_granted: number;
+  total_remaining: number;
+}
+
+export interface BillingUsageEventSnapshot {
+  usage_event_id: number;
+  feature_key: string;
+  quantity: number;
+  usage_status: string;
+  created_at: string;
+  committed_at?: string | null;
+}
+
+export interface BillingUserBillingSummaryResponse {
+  user: BillingUserOption;
+  balances: BillingFeatureBalanceSummary[];
+  purchases: BillingPurchaseSnapshot[];
+  recent_usage: BillingUsageEventSnapshot[];
+}
+
+export interface BillingCancelManualPurchaseRequest {
+  reason?: string;
 }

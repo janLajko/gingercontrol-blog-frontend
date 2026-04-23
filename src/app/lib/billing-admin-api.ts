@@ -1,8 +1,11 @@
 import type {
   BillingCreateProductRequest,
+  BillingCancelManualPurchaseRequest,
+  BillingCreateManualPurchaseRequest,
   BillingAdminErrorDetail,
   BillingAdminErrorResponse,
   BillingFeaturePolicyListResponse,
+  BillingPurchaseSnapshot,
   BillingPatchProductRequest,
   BillingProduct,
   BillingProductDetail,
@@ -11,6 +14,8 @@ import type {
   BillingSyncStripeRequest,
   BillingSyncStripeResponse,
   BillingUpdateProductRequest,
+  BillingUserBillingSummaryResponse,
+  BillingUserSearchResponse,
 } from "@/types/billing";
 
 const DEFAULT_BILLING_ADMIN_BASE_URL = "/api/admin/billing";
@@ -202,6 +207,45 @@ export function createBillingAdminApiClient(
     syncStripe(product_code: string, body: BillingSyncStripeRequest) {
       return request<BillingSyncStripeResponse>(
         `/products/${encodeURIComponent(product_code)}/sync-stripe`,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+      );
+    },
+
+    searchUsers(keyword: string, limit = 20) {
+      const params = new URLSearchParams();
+      params.set("keyword", keyword);
+      params.set("limit", String(limit));
+      return request<BillingUserSearchResponse>(`/users/search?${params.toString()}`);
+    },
+
+    getUserBillingSummary(user_id: number) {
+      return request<BillingUserBillingSummaryResponse>(
+        `/users/${encodeURIComponent(String(user_id))}/billing-summary`,
+      );
+    },
+
+    createManualPurchase(
+      user_id: number,
+      body: BillingCreateManualPurchaseRequest,
+    ) {
+      return request<BillingPurchaseSnapshot>(
+        `/users/${encodeURIComponent(String(user_id))}/manual-purchases`,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+      );
+    },
+
+    cancelManualPurchase(
+      purchase_id: number,
+      body: BillingCancelManualPurchaseRequest,
+    ) {
+      return request<BillingPurchaseSnapshot>(
+        `/manual-purchases/${encodeURIComponent(String(purchase_id))}/cancel`,
         {
           method: "POST",
           body: JSON.stringify(body),

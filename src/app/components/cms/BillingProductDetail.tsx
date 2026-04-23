@@ -167,7 +167,10 @@ export default function BillingProductDetail({
     );
   }
 
-  const hasActiveMismatch = product.active !== product.stripe_catalog.active;
+  const hasStripeBinding = product.stripe_catalog != null;
+  const stripeCatalog = product.stripe_catalog;
+  const hasActiveMismatch =
+    hasStripeBinding && product.active !== stripeCatalog!.active;
 
   return (
     <div className="space-y-6">
@@ -212,12 +215,16 @@ export default function BillingProductDetail({
             </button>
             <button
               type="button"
-              disabled={actionKey !== null}
+              disabled={actionKey !== null || !hasStripeBinding}
               onClick={() => void handleSyncStripe()}
               className="inline-flex items-center gap-2 rounded-2xl border border-sky-200 bg-white px-4 py-3 text-sm font-semibold text-sky-700 transition hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RefreshCcw className="h-4 w-4" />
-              {actionKey === "sync" ? "同步中..." : "手动同步 Stripe"}
+              {actionKey === "sync"
+                ? "同步中..."
+                : hasStripeBinding
+                  ? "手动同步 Stripe"
+                  : "No Stripe Binding"}
             </button>
             <button
               type="button"
@@ -237,7 +244,7 @@ export default function BillingProductDetail({
               <p className="font-semibold">本地与 Stripe 状态不一致</p>
               <p className="mt-1 text-sm">
                 local active = {String(product.active)}，stripe_catalog.active ={" "}
-                {String(product.stripe_catalog.active)}
+                {String(stripeCatalog?.active)}
               </p>
             </div>
           </div>
@@ -292,27 +299,33 @@ export default function BillingProductDetail({
           title="Stripe 信息"
           description="这一组只展示 stripe_catalog 返回的 Stripe 字段。"
         >
-          <InfoGrid
-            items={[
-              ["stripe_product_id", product.stripe_catalog.stripe_product_id],
-              ["stripe_price_id", product.stripe_catalog.stripe_price_id],
-              ["currency", product.stripe_catalog.currency],
-              ["unit_amount", String(product.stripe_catalog.unit_amount)],
-              ["billing_scheme", product.stripe_catalog.billing_scheme],
-              [
-                "recurring_interval",
-                product.stripe_catalog.recurring_interval || "-",
-              ],
-              [
-                "recurring_interval_count",
-                product.stripe_catalog.recurring_interval_count != null
-                  ? String(product.stripe_catalog.recurring_interval_count)
-                  : "-",
-              ],
-              ["lookup_key", product.stripe_catalog.lookup_key || "-"],
-              ["active", String(product.stripe_catalog.active)],
-            ]}
-          />
+          {hasStripeBinding ? (
+            <InfoGrid
+              items={[
+                ["stripe_product_id", stripeCatalog?.stripe_product_id || ""],
+                ["stripe_price_id", stripeCatalog?.stripe_price_id || ""],
+                ["currency", stripeCatalog?.currency || "usd"],
+                ["unit_amount", String(stripeCatalog?.unit_amount || 0)],
+                ["billing_scheme", stripeCatalog?.billing_scheme || ""],
+                [
+                  "recurring_interval",
+                  stripeCatalog?.recurring_interval || "-",
+                ],
+                [
+                  "recurring_interval_count",
+                  stripeCatalog?.recurring_interval_count != null
+                    ? String(stripeCatalog.recurring_interval_count)
+                    : "-",
+                ],
+                ["lookup_key", stripeCatalog?.lookup_key || "-"],
+                ["active", String(stripeCatalog?.active)],
+              ]}
+            />
+          ) : (
+            <div className="rounded-2xl border border-dashed border-black/10 px-4 py-5 text-sm text-slate-500">
+              This product is local-only and is not bound to Stripe.
+            </div>
+          )}
         </InfoSection>
       </section>
 

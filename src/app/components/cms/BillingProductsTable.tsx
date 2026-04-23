@@ -198,6 +198,13 @@ export default function BillingProductsTable() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <Link
+              href="/cms/billing/user-billing"
+              className="inline-flex items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-black/20 hover:text-slate-950"
+            >
+              <PlusCircle className="h-4 w-4" />
+              Manage User Billing
+            </Link>
             <button
               type="button"
               onClick={() => void loadProducts(page, pageSize)}
@@ -234,6 +241,7 @@ export default function BillingProductsTable() {
               <option value="">All</option>
               <option value="simulate">simulate</option>
               <option value="classification">classification</option>
+              <option value="system">system</option>
             </select>
           </label>
 

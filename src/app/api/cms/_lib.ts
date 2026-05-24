@@ -26,11 +26,30 @@ export async function proxyToFastApi(
     headers.set("Authorization", `Bearer ${API_KEY}`);
   }
 
-  const response = await fetch(`${FASTAPI_BASE_URL}${path}`, {
-    ...init,
-    headers,
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${FASTAPI_BASE_URL}${path}`, {
+      ...init,
+      headers,
+      cache: "no-store",
+    });
+  } catch (error) {
+    console.error("FastAPI proxy request failed", {
+      baseUrl: FASTAPI_BASE_URL,
+      path,
+      error,
+    });
+
+    return NextResponse.json(
+      {
+        detail: {
+          code: "fastapi_unreachable",
+          message: `FastAPI is not reachable at ${FASTAPI_BASE_URL}. Start the backend service or set FASTAPI_BASE_URL to the running backend URL.`,
+        },
+      },
+      { status: 502 },
+    );
+  }
 
   const contentType = response.headers.get("content-type") || "";
 

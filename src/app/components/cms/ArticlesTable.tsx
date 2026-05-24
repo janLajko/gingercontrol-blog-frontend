@@ -20,6 +20,7 @@ export default function ArticlesTable({ type = "article" }: ArticlesTableProps) 
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
 
   async function loadArticles(targetPage = page) {
     try {
@@ -31,6 +32,10 @@ export default function ArticlesTable({ type = "article" }: ArticlesTableProps) 
         page_limit: String(PAGE_LIMIT),
         type,
       });
+      const normalizedTitle = title.trim();
+      if (normalizedTitle) {
+        searchParams.set("title", normalizedTitle);
+      }
 
       const response = await fetch(`/api/cms/articles?${searchParams.toString()}`, {
         cache: "no-store",
@@ -54,9 +59,12 @@ export default function ArticlesTable({ type = "article" }: ArticlesTableProps) 
   }
 
   useEffect(() => {
-    void loadArticles(1);
+    const timeoutId = window.setTimeout(() => {
+      void loadArticles(1);
+    }, 300);
+    return () => window.clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type]);
+  }, [type, title]);
 
   return (
     <section className="rounded-[2rem] border border-black/8 bg-white/80 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
@@ -71,7 +79,14 @@ export default function ArticlesTable({ type = "article" }: ArticlesTableProps) 
               : "Browse saved articles and jump directly into the editor."}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input
+            type="search"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="title 搜索"
+            className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-slate-400 sm:w-56"
+          />
           <button
             type="button"
             onClick={() => void loadArticles()}

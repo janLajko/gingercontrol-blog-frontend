@@ -7,6 +7,7 @@ import {
   CreditCard,
   FileText,
   FolderTree,
+  KeyRound,
   LayoutDashboard,
   Newspaper,
   PlusCircle,
@@ -24,6 +25,7 @@ const navItems = [
   { href: "/cms/articles", label: "Articles", icon: FileText },
   { href: "/cms/news", label: "News", icon: Newspaper },
   { href: "/cms/radar-policy", label: "Policy Radar", icon: FileText },
+  { href: "/cms/invitation-codes", label: "Invitation Codes", icon: KeyRound },
   { href: "/cms/categories", label: "Category", icon: FolderTree },
   { href: "/cms/billing/products", label: "Billing", icon: CreditCard },
   { href: "/cms/billing/user-billing", label: "User Billing", icon: CreditCard },
@@ -109,6 +111,7 @@ export default function CmsShell({ children }: CmsShellProps) {
                 <QuickLink href="/cms/articles/new">Generate Draft</QuickLink>
                 <QuickLink href="/cms/categories">Manage Categories</QuickLink>
                 <QuickLink href="/cms/radar-policy">Policy Radar</QuickLink>
+                <QuickLink href="/cms/invitation-codes">Invitation Codes</QuickLink>
                 <QuickLink href="/cms/billing/products">Billing Products</QuickLink>
                 <QuickLink href="/cms/billing/user-billing">User Billing</QuickLink>
               </div>

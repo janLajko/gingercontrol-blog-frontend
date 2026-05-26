@@ -19,13 +19,12 @@ import {
   Send,
   Save,
   Trash2,
-  WandSparkles,
 } from "lucide-react";
 
 import type {
+  ArticleChatMessage,
+  ArticleChatReplyResponse,
   BlogCustomization,
-  BlogGenerationRequest,
-  BlogGenerationResponse,
   CmsArticle,
   CmsArticlePayload,
   CmsCategory,
@@ -127,8 +126,10 @@ export default function ArticleWorkbench({
   const [savedArticleId, setSavedArticleId] = useState<number | null>(
     mode === "edit" ? articleId ?? null : null,
   );
+  const [chatMessages, setChatMessages] = useState<ArticleChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
   const [loading, setLoading] = useState(mode === "edit");
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isChatSending, setIsChatSending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -266,38 +267,57 @@ export default function ArticleWorkbench({
     setArticle((current) => ({ ...current, [field]: value }));
   }
 
-  async function handleGenerate(event: FormEvent<HTMLFormElement>) {
+  async function handleSendChatMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isGenerating) {
+    const nextMessage = chatInput.trim();
+    if (isChatSending || !nextMessage) {
       return;
     }
 
     setError(null);
     setMessage(null);
 
-    const requestPayload: BlogGenerationRequest = {
-      keyword: generationForm.keyword,
-      max_attempts: generationForm.max_attempts,
-      seo_threshold: generationForm.seo_threshold,
-      priority: generationForm.priority,
-      callback_url: generationForm.callback_url || undefined,
-      user_id: generationForm.user_id || undefined,
-      authorName: generationForm.authorName || undefined,
-      authorAvatar: generationForm.authorAvatar || undefined,
-      category: generationForm.category || undefined,
-      coverImage: generationForm.coverImage || undefined,
+    const requestPayload = {
+      article: article.body
+        ? {
+            slug: article.slug,
+            title: article.title,
+            description: article.description,
+            tags: article.tags,
+            body: article.body,
+          }
+        : null,
+      messages: chatMessages,
+      message: nextMessage,
       customization: {
         ...generationForm.customization,
         focus_keywords: parseCommaSeparated(focusKeywordsInput),
         exclude_domains: parseCommaSeparated(excludeDomainsInput),
       },
+      metadata: {
+        keyword: article.keyword || generationForm.keyword || undefined,
+        authorName: article.authorName || generationForm.authorName || undefined,
+        authorAvatar:
+          article.authorAvatar || generationForm.authorAvatar || undefined,
+        category: article.category || generationForm.category || undefined,
+        coverImage: article.coverImage || generationForm.coverImage || undefined,
+        user_id: article.user_id || generationForm.user_id || undefined,
+        type: articleType,
+      },
+      source_details: article.source_details || [],
     };
 
     startTransition(() => {
       void (async () => {
         try {
-          setIsGenerating(true);
-          const response = await fetch("/api/blog/generate", {
+          setIsChatSending(true);
+          setChatMessages((current) => [
+            ...current,
+            { role: "user", content: nextMessage },
+          ]);
+          setChatInput("");
+
+          const response = await fetch("/api/cms/article-chat/reply", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(requestPayload),
@@ -308,50 +328,55 @@ export default function ArticleWorkbench({
               | { error?: string; detail?: string }
               | null;
             throw new Error(
-              payload?.detail || payload?.error || "Draft generation failed",
+              payload?.detail || payload?.error || "Article chat request failed",
             );
           }
 
-          const generated = (await response.json()) as BlogGenerationResponse;
-          setSavedArticleId(generated.post_id ?? null);
-          setArticle({
-            run_id: generated.run_id,
-            keyword: generationForm.keyword,
-            slug: generated.article.slug,
-            title: generated.article.title,
-            description: generated.article.description,
-            tags: generated.article.tags,
-            body: generated.article.body,
-            authorName: generated.author.authorName || generationForm.authorName,
-            authorAvatar:
-              generated.author.authorAvatar || generationForm.authorAvatar,
-            category: generated.author.category || generationForm.category,
-            coverImage: generated.author.coverImage || generationForm.coverImage,
-            user_id: generationForm.user_id || undefined,
-            status: generated.success ? "draft" : "pending_review",
-            success: generated.success,
-            sources_used: generated.metadata.sources_used,
-            source_details: [],
-            seo_scores: generated.seo_scores,
-            final_score: generated.seo_scores.final_score,
-            model_used: generated.metadata.model_used,
+          const result = (await response.json()) as ArticleChatReplyResponse;
+          setArticle((current) => ({
+            ...current,
+            keyword: current.keyword || generationForm.keyword || nextMessage,
+            slug: result.article.slug,
+            title: result.article.title,
+            description: result.article.description,
+            tags: result.article.tags,
+            body: result.article.body,
+            authorName: current.authorName || generationForm.authorName,
+            authorAvatar: current.authorAvatar || generationForm.authorAvatar,
+            category: current.category || generationForm.category,
+            coverImage: current.coverImage || generationForm.coverImage,
+            user_id: current.user_id || generationForm.user_id || undefined,
+            status: normalizeArticleStatus(current.status),
+            success: true,
+            sources_used: result.metadata.sources_used || current.sources_used || [],
+            source_details:
+              result.metadata.source_details || current.source_details || [],
+            model_used: result.metadata.model_used || current.model_used || "",
             customization: requestPayload.customization || {},
             error_message: null,
-          });
-          setTagInput(generated.article.tags.join(", "));
-          setMessage(
-            generated.post_id
-              ? "Draft generated and loaded from the saved record. You can edit it before updating."
-              : "Draft generated. Review and save when ready.",
+          }));
+          setTagInput(result.article.tags.join(", "));
+          setChatMessages((current) => [
+            ...current,
+            { role: "assistant", content: result.assistant_message },
+          ]);
+        } catch (chatError) {
+          setChatMessages((current) =>
+            current.filter(
+              (item, index) =>
+                index !== current.length - 1 ||
+                item.role !== "user" ||
+                item.content !== nextMessage,
+            ),
           );
-        } catch (generationError) {
+          setChatInput(nextMessage);
           setError(
-            generationError instanceof Error
-              ? generationError.message
-              : "Draft generation failed",
+            chatError instanceof Error
+              ? chatError.message
+              : "Article chat request failed",
           );
         } finally {
-          setIsGenerating(false);
+          setIsChatSending(false);
         }
       })();
     });
@@ -567,312 +592,294 @@ export default function ArticleWorkbench({
             </div>
           </div>
 
-          <form className="mt-6 space-y-5" onSubmit={handleGenerate}>
-            <Field label="Keyword">
-              <input
-                value={generationForm.keyword}
-                onChange={(event) =>
-                  updateGenerationField("keyword", event.target.value)
+          <form className="mt-6 space-y-5" onSubmit={handleSendChatMessage}>
+            <div className="max-h-[360px] space-y-3 overflow-auto rounded-2xl border border-black/8 bg-slate-50 p-4">
+              {chatMessages.length === 0 ? (
+                <div className="rounded-2xl bg-white p-4 text-sm text-slate-500">
+                  写一篇关于国际贸易的文章，字数：1500...
+                </div>
+              ) : (
+                chatMessages.map((chatMessage, index) => (
+                  <div
+                    key={`${chatMessage.role}-${index}`}
+                    className={`flex gap-3 ${
+                      chatMessage.role === "user" ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    {chatMessage.role !== "user" ? (
+                      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white">
+                        <Bot className="h-4 w-4" />
+                      </div>
+                    ) : null}
+                    <div
+                      className={`max-w-[min(720px,85%)] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-6 ${
+                        chatMessage.role === "user"
+                          ? "bg-slate-950 text-white"
+                          : "border border-black/8 bg-white text-slate-700"
+                      }`}
+                    >
+                      {chatMessage.content}
+                    </div>
+                  </div>
+                ))
+              )}
+              {isChatSending ? (
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                  Working...
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-3 lg:flex-row">
+              <textarea
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                placeholder={
+                  article.body
+                    ? "第二段修改一下，强调关税对供应链的影响"
+                    : "写一篇关于国际贸易的文章，字数：1500，语气专业"
                 }
-                placeholder="US-China tariffs"
-                className={inputClassName}
+                rows={3}
+                className={`${textareaClassName} min-h-[96px] flex-1 resize-y`}
                 required
               />
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Author name">
-                <input
-                  value={generationForm.authorName}
-                  onChange={(event) =>
-                    updateGenerationField("authorName", event.target.value)
-                  }
-                  placeholder="Jane Analyst"
-                  className={inputClassName}
-                />
-              </Field>
-              <Field label="Category">
-                <input
-                  value={generationForm.category}
-                  onChange={(event) =>
-                    updateGenerationField("category", event.target.value)
-                  }
-                  list="cms-category-options"
-                  placeholder="Trade policy"
-                  className={inputClassName}
-                />
-              </Field>
+              <button
+                type="submit"
+                disabled={isChatSending || !chatInput.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 lg:w-36"
+              >
+                {isChatSending ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                Send
+              </button>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Author avatar URL">
-                <input
-                  value={generationForm.authorAvatar}
-                  onChange={(event) =>
-                    updateGenerationField("authorAvatar", event.target.value)
-                  }
-                  placeholder="https://..."
-                  className={inputClassName}
-                />
-              </Field>
-              <Field label="Cover image URL">
-                <div className="space-y-3">
+            <details className="rounded-2xl border border-black/8 bg-white p-4">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                Advanced settings
+              </summary>
+              <div className="mt-5 space-y-5">
+                <Field label="Keyword">
                   <input
-                    value={generationForm.coverImage}
-                    onChange={(event) => {
-                      updateGenerationField("coverImage", event.target.value);
-                      updateArticleField("coverImage", event.target.value);
-                    }}
-                    placeholder="https://..."
+                    value={generationForm.keyword}
+                    onChange={(event) =>
+                      updateGenerationField("keyword", event.target.value)
+                    }
+                    placeholder="US-China tariffs"
                     className={inputClassName}
                   />
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => generationCoverInputRef.current?.click()}
-                      disabled={
-                        isUploadingGenerationCover ||
-                        isGenerating ||
-                        isSaving ||
-                        isDeleting
+                </Field>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Author name">
+                    <input
+                      value={generationForm.authorName}
+                      onChange={(event) =>
+                        updateGenerationField("authorName", event.target.value)
                       }
-                      className="inline-flex items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-black/20 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isUploadingGenerationCover ? (
-                        <LoaderCircle className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <ImageUp className="h-4 w-4" />
-                      )}
-                      {isUploadingGenerationCover
-                        ? "Uploading..."
-                        : "Upload image"}
-                    </button>
-                    {generationForm.coverImage ? (
-                      <span className="text-xs text-slate-500">
-                        Uploaded URL will auto-fill here.
-                      </span>
-                    ) : null}
-                  </div>
-                  <input
-                    ref={generationCoverInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) =>
-                      void handleCoverUpload(event, "generation")
-                    }
-                    className="hidden"
-                  />
-                  {generationForm.coverImage ? (
-                    <img
-                      src={generationForm.coverImage}
-                      alt="Cover preview"
-                      className="h-40 w-full rounded-2xl border border-black/8 object-cover"
+                      placeholder="Jane Analyst"
+                      className={inputClassName}
                     />
-                  ) : null}
+                  </Field>
+                  <Field label="Category">
+                    <input
+                      value={generationForm.category}
+                      onChange={(event) =>
+                        updateGenerationField("category", event.target.value)
+                      }
+                      list="cms-category-options"
+                      placeholder="Trade policy"
+                      className={inputClassName}
+                    />
+                  </Field>
                 </div>
-              </Field>
-            </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label="Max attempts">
-                <input
-                  value={generationForm.max_attempts}
-                  onChange={(event) =>
-                    updateGenerationField(
-                      "max_attempts",
-                      Number(event.target.value),
-                    )
-                  }
-                  type="number"
-                  min={1}
-                  max={10}
-                  className={inputClassName}
-                />
-              </Field>
-              <Field label="SEO threshold">
-                <input
-                  value={generationForm.seo_threshold}
-                  onChange={(event) =>
-                    updateGenerationField(
-                      "seo_threshold",
-                      Number(event.target.value),
-                    )
-                  }
-                  type="number"
-                  min={0}
-                  max={100}
-                  className={inputClassName}
-                />
-              </Field>
-              <Field label="Priority">
-                <select
-                  value={generationForm.priority}
-                  onChange={(event) =>
-                    updateGenerationField(
-                      "priority",
-                      event.target.value as GenerationFormState["priority"],
-                    )
-                  }
-                  className={inputClassName}
-                >
-                  <option value="low">low</option>
-                  <option value="normal">normal</option>
-                  <option value="high">high</option>
-                </select>
-              </Field>
-            </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Tone">
+                    <select
+                      value={generationForm.customization.tone}
+                      onChange={(event) =>
+                        updateCustomizationField(
+                          "tone",
+                          event.target.value as Required<BlogCustomization>["tone"],
+                        )
+                      }
+                      className={inputClassName}
+                    >
+                      <option value="professional">professional</option>
+                      <option value="casual">casual</option>
+                      <option value="technical">technical</option>
+                      <option value="friendly">friendly</option>
+                      <option value="authoritative">authoritative</option>
+                    </select>
+                  </Field>
+                  <Field label="Audience">
+                    <select
+                      value={generationForm.customization.target_audience}
+                      onChange={(event) =>
+                        updateCustomizationField(
+                          "target_audience",
+                          event.target.value as Required<BlogCustomization>["target_audience"],
+                        )
+                      }
+                      className={inputClassName}
+                    >
+                      <option value="general">general</option>
+                      <option value="beginners">beginners</option>
+                      <option value="intermediate">intermediate</option>
+                      <option value="advanced">advanced</option>
+                    </select>
+                  </Field>
+                </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Tone">
-                <select
-                  value={generationForm.customization.tone}
-                  onChange={(event) =>
-                    updateCustomizationField(
-                      "tone",
-                      event.target.value as Required<BlogCustomization>["tone"],
-                    )
-                  }
-                  className={inputClassName}
-                >
-                  <option value="professional">professional</option>
-                  <option value="casual">casual</option>
-                  <option value="technical">technical</option>
-                  <option value="friendly">friendly</option>
-                  <option value="authoritative">authoritative</option>
-                </select>
-              </Field>
-              <Field label="Audience">
-                <select
-                  value={generationForm.customization.target_audience}
-                  onChange={(event) =>
-                    updateCustomizationField(
-                      "target_audience",
-                      event.target.value as Required<BlogCustomization>["target_audience"],
-                    )
-                  }
-                  className={inputClassName}
-                >
-                  <option value="general">general</option>
-                  <option value="beginners">beginners</option>
-                  <option value="intermediate">intermediate</option>
-                  <option value="advanced">advanced</option>
-                </select>
-              </Field>
-            </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Content type">
+                    <select
+                      value={generationForm.customization.content_type}
+                      onChange={(event) =>
+                        updateCustomizationField(
+                          "content_type",
+                          event.target.value as Required<BlogCustomization>["content_type"],
+                        )
+                      }
+                      className={inputClassName}
+                    >
+                      <option value="guide">guide</option>
+                      <option value="tutorial">tutorial</option>
+                      <option value="review">review</option>
+                      <option value="comparison">comparison</option>
+                      <option value="news">news</option>
+                      <option value="opinion">opinion</option>
+                    </select>
+                  </Field>
+                  <Field label="Word count target">
+                    <input
+                      value={generationForm.customization.word_count_target}
+                      onChange={(event) =>
+                        updateCustomizationField(
+                          "word_count_target",
+                          Number(event.target.value),
+                        )
+                      }
+                      type="number"
+                      min={800}
+                      max={5000}
+                      className={inputClassName}
+                    />
+                  </Field>
+                </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Content type">
-                <select
-                  value={generationForm.customization.content_type}
-                  onChange={(event) =>
-                    updateCustomizationField(
-                      "content_type",
-                      event.target.value as Required<BlogCustomization>["content_type"],
-                    )
-                  }
-                  className={inputClassName}
-                >
-                  <option value="guide">guide</option>
-                  <option value="tutorial">tutorial</option>
-                  <option value="review">review</option>
-                  <option value="comparison">comparison</option>
-                  <option value="news">news</option>
-                  <option value="opinion">opinion</option>
-                </select>
-              </Field>
-              <Field label="Word count target">
-                <input
-                  value={generationForm.customization.word_count_target}
-                  onChange={(event) =>
-                    updateCustomizationField(
-                      "word_count_target",
-                      Number(event.target.value),
-                    )
-                  }
-                  type="number"
-                  min={800}
-                  max={5000}
-                  className={inputClassName}
-                />
-              </Field>
-            </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Toggle
+                    label="Table of contents"
+                    checked={generationForm.customization.include_table_of_contents}
+                    onChange={(checked) =>
+                      updateCustomizationField("include_table_of_contents", checked)
+                    }
+                  />
+                  <Toggle
+                    label="Include FAQ"
+                    checked={generationForm.customization.include_faq}
+                    onChange={(checked) =>
+                      updateCustomizationField("include_faq", checked)
+                    }
+                  />
+                  <Toggle
+                    label="Include conclusion"
+                    checked={generationForm.customization.include_conclusion}
+                    onChange={(checked) =>
+                      updateCustomizationField("include_conclusion", checked)
+                    }
+                  />
+                </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Toggle
-                label="Table of contents"
-                checked={generationForm.customization.include_table_of_contents}
-                onChange={(checked) =>
-                  updateCustomizationField("include_table_of_contents", checked)
-                }
-              />
-              <Toggle
-                label="Include FAQ"
-                checked={generationForm.customization.include_faq}
-                onChange={(checked) =>
-                  updateCustomizationField("include_faq", checked)
-                }
-              />
-              <Toggle
-                label="Include conclusion"
-                checked={generationForm.customization.include_conclusion}
-                onChange={(checked) =>
-                  updateCustomizationField("include_conclusion", checked)
-                }
-              />
-            </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Focus keywords">
+                    <input
+                      value={focusKeywordsInput}
+                      onChange={(event) => setFocusKeywordsInput(event.target.value)}
+                      placeholder="trade, tariffs"
+                      className={inputClassName}
+                    />
+                  </Field>
+                  <Field label="Exclude domains">
+                    <input
+                      value={excludeDomainsInput}
+                      onChange={(event) => setExcludeDomainsInput(event.target.value)}
+                      placeholder="example.com, news.example.com"
+                      className={inputClassName}
+                    />
+                  </Field>
+                </div>
 
-            <Field label="Focus keywords">
-              <input
-                value={focusKeywordsInput}
-                onChange={(event) => setFocusKeywordsInput(event.target.value)}
-                placeholder="trade, tariffs"
-                className={inputClassName}
-              />
-            </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Author avatar URL">
+                    <input
+                      value={generationForm.authorAvatar}
+                      onChange={(event) =>
+                        updateGenerationField("authorAvatar", event.target.value)
+                      }
+                      placeholder="https://..."
+                      className={inputClassName}
+                    />
+                  </Field>
+                  <Field label="Cover image URL">
+                    <div className="space-y-3">
+                      <input
+                        value={generationForm.coverImage}
+                        onChange={(event) => {
+                          updateGenerationField("coverImage", event.target.value);
+                          updateArticleField("coverImage", event.target.value);
+                        }}
+                        placeholder="https://..."
+                        className={inputClassName}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => generationCoverInputRef.current?.click()}
+                        disabled={
+                          isUploadingGenerationCover ||
+                          isChatSending ||
+                          isSaving ||
+                          isDeleting
+                        }
+                        className="inline-flex items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-black/20 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isUploadingGenerationCover ? (
+                          <LoaderCircle className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <ImageUp className="h-4 w-4" />
+                        )}
+                        {isUploadingGenerationCover ? "Uploading..." : "Upload image"}
+                      </button>
+                      <input
+                        ref={generationCoverInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) =>
+                          void handleCoverUpload(event, "generation")
+                        }
+                        className="hidden"
+                      />
+                    </div>
+                  </Field>
+                </div>
 
-            <Field label="Exclude domains">
-              <input
-                value={excludeDomainsInput}
-                onChange={(event) => setExcludeDomainsInput(event.target.value)}
-                placeholder="example.com, news.example.com"
-                className={inputClassName}
-              />
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="User ID">
-                <input
-                  value={generationForm.user_id}
-                  onChange={(event) =>
-                    updateGenerationField("user_id", event.target.value)
-                  }
-                  className={inputClassName}
-                />
-              </Field>
-              <Field label="Callback URL">
-                <input
-                  value={generationForm.callback_url}
-                  onChange={(event) =>
-                    updateGenerationField("callback_url", event.target.value)
-                  }
-                  placeholder="https://..."
-                  className={inputClassName}
-                />
-              </Field>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isGenerating}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-300 via-orange-300 to-rose-300 px-4 py-4 text-sm font-black text-slate-950 transition hover:brightness-105 disabled:cursor-not-allowed disabled:brightness-95 disabled:opacity-70"
-            >
-              {isGenerating ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" />
-              ) : (
-                <WandSparkles className="h-4 w-4" />
-              )}
-              {isGenerating ? "Generating draft..." : "Generate grounded draft"}
-            </button>
+                <Field label="User ID">
+                  <input
+                    value={generationForm.user_id}
+                    onChange={(event) =>
+                      updateGenerationField("user_id", event.target.value)
+                    }
+                    className={inputClassName}
+                  />
+                </Field>
+              </div>
+            </details>
           </form>
         </section>
         )}
@@ -909,7 +916,7 @@ export default function ArticleWorkbench({
                 <button
                   type="button"
                   onClick={() => void handleDelete()}
-                  disabled={isDeleting || isSaving || isPublishing || isGenerating}
+                  disabled={isDeleting || isSaving || isPublishing || isChatSending}
                   className="inline-flex items-center gap-2 rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isDeleting ? (
@@ -928,7 +935,7 @@ export default function ArticleWorkbench({
                     isPublishing ||
                     isSaving ||
                     isDeleting ||
-                    isGenerating ||
+                    isChatSending ||
                     !article.title ||
                     !article.body ||
                     article.status === "published"
@@ -953,7 +960,7 @@ export default function ArticleWorkbench({
                   isSaving ||
                   isPublishing ||
                   isDeleting ||
-                  isGenerating ||
+                  isChatSending ||
                   !article.title ||
                   !article.body
                 }
@@ -1086,7 +1093,7 @@ export default function ArticleWorkbench({
                         onClick={() => editorCoverInputRef.current?.click()}
                         disabled={
                           isUploadingEditorCover ||
-                          isGenerating ||
+                          isChatSending ||
                           isSaving ||
                           isPublishing ||
                           isDeleting

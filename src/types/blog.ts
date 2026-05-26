@@ -186,6 +186,33 @@ export interface BlogGenerationResponse {
   content_quality_grade: string;
 }
 
+export interface ArticleChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
+export interface ArticleChatReplyRequest {
+  article?: GeneratedArticle | null;
+  messages?: ArticleChatMessage[];
+  message: string;
+  customization?: BlogCustomization | Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  source_details?: Array<Record<string, unknown>>;
+}
+
+export interface ArticleChatReplyResponse {
+  assistant_message: string;
+  article: GeneratedArticle;
+  status: "completed";
+  metadata: {
+    model_used?: string;
+    sources_used?: string[];
+    source_details?: Array<Record<string, unknown>>;
+    processing_time_seconds?: number;
+    [key: string]: unknown;
+  };
+}
+
 export interface LoadingQuote {
   text: string;
   icon: string;

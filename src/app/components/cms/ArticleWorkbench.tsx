@@ -596,7 +596,7 @@ export default function ArticleWorkbench({
             <div className="max-h-[360px] space-y-3 overflow-auto rounded-2xl border border-black/8 bg-slate-50 p-4">
               {chatMessages.length === 0 ? (
                 <div className="rounded-2xl bg-white p-4 text-sm text-slate-500">
-                  写一篇关于国际贸易的文章，字数：1500...
+                  Write an article about international trade, 1,500 words...
                 </div>
               ) : (
                 chatMessages.map((chatMessage, index) => (
@@ -637,8 +637,8 @@ export default function ArticleWorkbench({
                 onChange={(event) => setChatInput(event.target.value)}
                 placeholder={
                   article.body
-                    ? "第二段修改一下，强调关税对供应链的影响"
-                    : "写一篇关于国际贸易的文章，字数：1500，语气专业"
+                    ? "Revise the second paragraph to emphasize how tariffs affect supply chains"
+                    : "Write an article about international trade, 1,500 words, professional tone"
                 }
                 rows={3}
                 className={`${textareaClassName} min-h-[96px] flex-1 resize-y`}

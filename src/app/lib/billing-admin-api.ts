@@ -16,6 +16,13 @@ import type {
   BillingUpdateProductRequest,
   BillingUserBillingSummaryResponse,
   BillingUserSearchResponse,
+  OpenApiClientListQuery,
+  OpenApiClientListResponse,
+  OpenApiKeyCreateRequest,
+  OpenApiKeyCreateResponse,
+  OpenApiKeyListQuery,
+  OpenApiKeyListResponse,
+  OpenApiKey,
 } from "@/types/billing";
 
 const DEFAULT_BILLING_ADMIN_BASE_URL = "/api/admin/billing";
@@ -74,6 +81,56 @@ function buildListQuery(query?: BillingProductListQuery) {
 
   if (query?.active !== undefined) {
     searchParams.set("active", String(query.active));
+  }
+
+  if (query?.keyword) {
+    searchParams.set("keyword", query.keyword);
+  }
+
+  if (query?.page !== undefined) {
+    searchParams.set("page", String(query.page));
+  }
+
+  if (query?.page_size !== undefined) {
+    searchParams.set("page_size", String(query.page_size));
+  }
+
+  const queryString = searchParams.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
+function buildOpenApiClientListQuery(query?: OpenApiClientListQuery) {
+  const searchParams = new URLSearchParams();
+
+  if (query?.status) {
+    searchParams.set("status", query.status);
+  }
+
+  if (query?.keyword) {
+    searchParams.set("keyword", query.keyword);
+  }
+
+  if (query?.page !== undefined) {
+    searchParams.set("page", String(query.page));
+  }
+
+  if (query?.page_size !== undefined) {
+    searchParams.set("page_size", String(query.page_size));
+  }
+
+  const queryString = searchParams.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
+function buildOpenApiKeyListQuery(query?: OpenApiKeyListQuery) {
+  const searchParams = new URLSearchParams();
+
+  if (query?.client_id !== undefined) {
+    searchParams.set("client_id", String(query.client_id));
+  }
+
+  if (query?.status) {
+    searchParams.set("status", query.status);
   }
 
   if (query?.keyword) {
@@ -249,6 +306,34 @@ export function createBillingAdminApiClient(
         {
           method: "POST",
           body: JSON.stringify(body),
+        },
+      );
+    },
+
+    listOpenApiClients(query?: OpenApiClientListQuery) {
+      return request<OpenApiClientListResponse>(
+        `/openapi-clients${buildOpenApiClientListQuery(query)}`,
+      );
+    },
+
+    listOpenApiKeys(query?: OpenApiKeyListQuery) {
+      return request<OpenApiKeyListResponse>(
+        `/openapi-keys${buildOpenApiKeyListQuery(query)}`,
+      );
+    },
+
+    createOpenApiKey(body: OpenApiKeyCreateRequest) {
+      return request<OpenApiKeyCreateResponse>("/openapi-keys", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    },
+
+    revokeOpenApiKey(key_id: number) {
+      return request<OpenApiKey>(
+        `/openapi-keys/${encodeURIComponent(String(key_id))}`,
+        {
+          method: "DELETE",
         },
       );
     },

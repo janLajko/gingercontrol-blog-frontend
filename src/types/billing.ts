@@ -10,6 +10,12 @@ export type BillingRecurringInterval = "day" | "week" | "month" | "year";
 
 export type BillingStripeSyncMode = "create" | "bind_existing";
 
+export type OpenApiClientStatus = "active" | "disabled";
+
+export type OpenApiKeyStatus = "active" | "revoked";
+
+export type OpenApiKeyScope = "test" | "live";
+
 export interface BillingProductConfigEntry {
   feature_key: string;
   grant_mode: BillingGrantMode;
@@ -287,4 +293,72 @@ export interface BillingUserBillingSummaryResponse {
 
 export interface BillingCancelManualPurchaseRequest {
   reason?: string;
+}
+
+export interface OpenApiClient {
+  client_id: number;
+  client_code: string;
+  name: string;
+  status: OpenApiClientStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OpenApiClientListResponse {
+  items: OpenApiClient[];
+  page: number;
+  page_size: number;
+  total: number;
+}
+
+export interface OpenApiKey {
+  key_id: number;
+  client_id: number;
+  client_code: string;
+  client_name: string;
+  client_status: OpenApiClientStatus;
+  key_prefix: string;
+  secret_version: string;
+  status: OpenApiKeyStatus;
+  expires_at?: string | null;
+  rpm_limit: number;
+  burst_limit: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OpenApiKeyListResponse {
+  items: OpenApiKey[];
+  page: number;
+  page_size: number;
+  total: number;
+}
+
+export interface OpenApiClientListQuery {
+  status?: OpenApiClientStatus;
+  keyword?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface OpenApiKeyListQuery {
+  client_id?: number;
+  status?: OpenApiKeyStatus;
+  keyword?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface OpenApiKeyCreateRequest {
+  client_id: number;
+  key_scope?: OpenApiKeyScope;
+  key?: string;
+  rpm_limit?: number;
+  burst_limit?: number;
+  expires_at?: string | null;
+  secret_version?: string;
+}
+
+export interface OpenApiKeyCreateResponse extends OpenApiKey {
+  api_key: string;
 }

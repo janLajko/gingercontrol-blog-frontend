@@ -29,6 +29,7 @@ const navItems = [
   { href: "/cms/categories", label: "Category", icon: FolderTree },
   { href: "/cms/billing/products", label: "Billing", icon: CreditCard },
   { href: "/cms/billing/user-billing", label: "User Billing", icon: CreditCard },
+  { href: "/cms/api-keys", label: "API Keys", icon: KeyRound },
 ];
 
 export default function CmsShell({ children }: CmsShellProps) {
@@ -114,6 +115,7 @@ export default function CmsShell({ children }: CmsShellProps) {
                 <QuickLink href="/cms/invitation-codes">Invitation Codes</QuickLink>
                 <QuickLink href="/cms/billing/products">Billing Products</QuickLink>
                 <QuickLink href="/cms/billing/user-billing">User Billing</QuickLink>
+                <QuickLink href="/cms/api-keys">API Keys</QuickLink>
               </div>
             </div>
 

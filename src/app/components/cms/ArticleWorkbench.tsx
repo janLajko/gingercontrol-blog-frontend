@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 
 import type {
+  ArticleChatJobCreateResponse,
+  ArticleChatJobStatusResponse,
   ArticleChatMessage,
   ArticleChatReplyResponse,
   BlogCustomization,
@@ -105,6 +107,107 @@ const defaultArticlePayload: CmsArticlePayload = {
   customization: {},
   error_message: null,
 };
+
+const ARTICLE_CHAT_JOB_POLL_INTERVAL_MS = 2000;
+const ARTICLE_CHAT_JOB_TIMEOUT_MS = 120000;
+
+function delay(milliseconds: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function readApiErrorMessage(
+  payload: { error?: unknown; detail?: unknown } | null,
+  fallback: string,
+) {
+  if (!payload) {
+    return fallback;
+  }
+
+  if (typeof payload.detail === "string") {
+    return payload.detail;
+  }
+
+  if (
+    payload.detail &&
+    typeof payload.detail === "object" &&
+    "message" in payload.detail &&
+    typeof payload.detail.message === "string"
+  ) {
+    return payload.detail.message;
+  }
+
+  if (typeof payload.error === "string") {
+    return payload.error;
+  }
+
+  return fallback;
+}
+
+function isArticleChatReplyResponse(
+  payload: unknown,
+): payload is ArticleChatReplyResponse {
+  return (
+    !!payload &&
+    typeof payload === "object" &&
+    "article" in payload &&
+    !!payload.article &&
+    typeof payload.article === "object" &&
+    "slug" in payload.article &&
+    "title" in payload.article &&
+    "description" in payload.article &&
+    "tags" in payload.article &&
+    "body" in payload.article
+  );
+}
+
+function isArticleChatJobCreateResponse(
+  payload: unknown,
+): payload is ArticleChatJobCreateResponse {
+  return (
+    !!payload &&
+    typeof payload === "object" &&
+    "job_id" in payload &&
+    typeof payload.job_id === "string" &&
+    payload.job_id.length > 0
+  );
+}
+
+async function waitForArticleChatJob(jobId: string) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < ARTICLE_CHAT_JOB_TIMEOUT_MS) {
+    await delay(ARTICLE_CHAT_JOB_POLL_INTERVAL_MS);
+
+    const response = await fetch(`/api/cms/article-chat/jobs/${jobId}`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: unknown; detail?: unknown }
+        | null;
+      throw new Error(
+        readApiErrorMessage(payload, "Article chat job status request failed"),
+      );
+    }
+
+    const job = (await response.json()) as ArticleChatJobStatusResponse;
+
+    if (job.status === "completed" && isArticleChatReplyResponse(job.result)) {
+      return job.result;
+    }
+
+    if (job.status === "completed") {
+      throw new Error("Article chat job completed without an article result.");
+    }
+
+    if (job.status === "failed") {
+      throw new Error(job.error || "Article chat request failed");
+    }
+  }
+
+  throw new Error("Article chat job timed out. Please try again.");
+}
 
 export default function ArticleWorkbench({
   mode,
@@ -325,14 +428,24 @@ export default function ArticleWorkbench({
 
           if (!response.ok) {
             const payload = (await response.json().catch(() => null)) as
-              | { error?: string; detail?: string }
+              | { error?: unknown; detail?: unknown }
               | null;
             throw new Error(
-              payload?.detail || payload?.error || "Article chat request failed",
+              readApiErrorMessage(payload, "Article chat request failed"),
             );
           }
 
-          const result = (await response.json()) as ArticleChatReplyResponse;
+          const responsePayload = (await response.json()) as unknown;
+          const result = isArticleChatReplyResponse(responsePayload)
+            ? responsePayload
+            : isArticleChatJobCreateResponse(responsePayload)
+              ? await waitForArticleChatJob(responsePayload.job_id)
+              : null;
+
+          if (!result) {
+            throw new Error("Article chat response did not include a job id.");
+          }
+
           setArticle((current) => ({
             ...current,
             keyword: current.keyword || generationForm.keyword || nextMessage,

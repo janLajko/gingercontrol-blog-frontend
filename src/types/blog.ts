@@ -213,6 +213,19 @@ export interface ArticleChatReplyResponse {
   };
 }
 
+export interface ArticleChatJobCreateResponse {
+  job_id: string;
+  status: "queued" | "running" | "completed" | "failed";
+}
+
+export interface ArticleChatJobStatusResponse {
+  job_id: string;
+  status: "queued" | "running" | "completed" | "failed";
+  result?: ArticleChatReplyResponse | null;
+  error?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
 export interface LoadingQuote {
   text: string;
   icon: string;

@@ -23,6 +23,7 @@ export interface BlogGenerationRequest {
   authorName?: string;
   authorAvatar?: string;
   category?: string;
+  language?: string;
   coverImage?: string;
 }
 
@@ -38,6 +39,7 @@ export interface ArticleAuthorDetails {
   authorName?: string;
   authorAvatar?: string;
   category?: string;
+  language?: string;
   coverImage?: string;
 }
 
@@ -53,6 +55,7 @@ export interface CmsArticle {
   authorName?: string;
   authorAvatar?: string;
   category?: string;
+  language?: string;
   coverImage?: string;
   user_id?: string | null;
   status?: string;
@@ -81,6 +84,7 @@ export interface CmsArticleSummary {
   author_name?: string | null;
   author_avatar?: string | null;
   category?: string | null;
+  language?: string | null;
   type?: string | null;
 }
 
@@ -103,6 +107,7 @@ export interface CmsArticlePayload {
   authorName?: string;
   authorAvatar?: string;
   category?: string;
+  language?: string;
   coverImage?: string;
   user_id?: string;
   status?: string;

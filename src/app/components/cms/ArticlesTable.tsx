@@ -7,6 +7,12 @@ import { ChevronLeft, ChevronRight, PlusCircle, RefreshCcw } from "lucide-react"
 import type { CmsArticleSummary, PaginatedCmsArticlesResponse } from "@/types/blog";
 
 const PAGE_LIMIT = 20;
+const LANGUAGE_OPTIONS = [
+  { value: "", label: "All languages" },
+  { value: "en", label: "English" },
+  { value: "zh", label: "中文" },
+  { value: "ja", label: "日本語" },
+];
 
 interface ArticlesTableProps {
   type?: "article" | "news";
@@ -21,6 +27,7 @@ export default function ArticlesTable({ type = "article" }: ArticlesTableProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
+  const [language, setLanguage] = useState("");
 
   async function loadArticles(targetPage = page) {
     try {
@@ -35,6 +42,9 @@ export default function ArticlesTable({ type = "article" }: ArticlesTableProps) 
       const normalizedTitle = title.trim();
       if (normalizedTitle) {
         searchParams.set("title", normalizedTitle);
+      }
+      if (language) {
+        searchParams.set("language", language);
       }
 
       const response = await fetch(`/api/cms/articles?${searchParams.toString()}`, {
@@ -64,7 +74,7 @@ export default function ArticlesTable({ type = "article" }: ArticlesTableProps) 
     }, 300);
     return () => window.clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, title]);
+  }, [type, title, language]);
 
   return (
     <section className="rounded-[2rem] border border-black/8 bg-white/80 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
@@ -87,6 +97,17 @@ export default function ArticlesTable({ type = "article" }: ArticlesTableProps) 
             placeholder="title 搜索"
             className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-slate-400 sm:w-56"
           />
+          <select
+            value={language}
+            onChange={(event) => setLanguage(event.target.value)}
+            className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-400 sm:w-44"
+          >
+            {LANGUAGE_OPTIONS.map((option) => (
+              <option key={option.value || "all"} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             onClick={() => void loadArticles()}
@@ -121,6 +142,7 @@ export default function ArticlesTable({ type = "article" }: ArticlesTableProps) 
                 <tr>
                   <th className="px-6 py-4 font-semibold">{isNews ? "News" : "Article"}</th>
                   <th className="px-6 py-4 font-semibold">Category</th>
+                  <th className="px-6 py-4 font-semibold">Language</th>
                   <th className="px-6 py-4 font-semibold">Author</th>
                   <th className="px-6 py-4 font-semibold">Score</th>
                   <th className="px-6 py-4 font-semibold">Created</th>
@@ -143,6 +165,9 @@ export default function ArticlesTable({ type = "article" }: ArticlesTableProps) 
                     </td>
                     <td className="px-6 py-5 text-sm text-slate-600">
                       {article.category || "Unassigned"}
+                    </td>
+                    <td className="px-6 py-5 text-sm text-slate-600">
+                      {formatLanguage(article.language)}
                     </td>
                     <td className="px-6 py-5 text-sm text-slate-600">
                       {article.author_name || "Unknown"}
@@ -196,4 +221,12 @@ function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function formatLanguage(value?: string | null) {
+  return (
+    LANGUAGE_OPTIONS.find((option) => option.value === (value || "en"))?.label ||
+    value ||
+    "English"
+  );
 }

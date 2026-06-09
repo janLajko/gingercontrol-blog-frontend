@@ -54,9 +54,16 @@ interface GenerationFormState {
   authorName: string;
   authorAvatar: string;
   category: string;
+  language: string;
   coverImage: string;
   customization: Required<BlogCustomization>;
 }
+
+const LANGUAGE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "zh", label: "中文" },
+  { value: "ja", label: "日本語" },
+];
 
 const defaultCustomization: Required<BlogCustomization> = {
   tone: "professional",
@@ -80,6 +87,7 @@ const defaultGenerationForm: GenerationFormState = {
   authorName: "",
   authorAvatar: "",
   category: "",
+  language: "en",
   coverImage: "",
   customization: defaultCustomization,
 };
@@ -95,6 +103,7 @@ const defaultArticlePayload: CmsArticlePayload = {
   authorName: "",
   authorAvatar: "",
   category: "",
+  language: "en",
   coverImage: "",
   user_id: "cms-user",
   status: "draft",
@@ -311,6 +320,7 @@ export default function ArticleWorkbench({
       authorName: articleData.authorName || "",
       authorAvatar: articleData.authorAvatar || "",
       category: articleData.category || "",
+      language: articleData.language || "en",
       coverImage: articleData.coverImage || "",
       user_id: articleData.user_id || "cms-user",
       status: normalizeArticleStatus(articleData.status),
@@ -332,6 +342,7 @@ export default function ArticleWorkbench({
       authorName: articleData.authorName || "",
       authorAvatar: articleData.authorAvatar || "",
       category: articleData.category || "",
+      language: articleData.language || "en",
       coverImage: articleData.coverImage || "",
       user_id: articleData.user_id || current.user_id,
       customization: {
@@ -403,6 +414,7 @@ export default function ArticleWorkbench({
         authorAvatar:
           article.authorAvatar || generationForm.authorAvatar || undefined,
         category: article.category || generationForm.category || undefined,
+        language: article.language || generationForm.language || "en",
         coverImage: article.coverImage || generationForm.coverImage || undefined,
         user_id: article.user_id || generationForm.user_id || undefined,
         type: articleType,
@@ -457,6 +469,7 @@ export default function ArticleWorkbench({
             authorName: current.authorName || generationForm.authorName,
             authorAvatar: current.authorAvatar || generationForm.authorAvatar,
             category: current.category || generationForm.category,
+            language: current.language || generationForm.language || "en",
             coverImage: current.coverImage || generationForm.coverImage,
             user_id: current.user_id || generationForm.user_id || undefined,
             status: normalizeArticleStatus(current.status),
@@ -511,6 +524,7 @@ export default function ArticleWorkbench({
       authorAvatar:
         article.authorAvatar || generationForm.authorAvatar || undefined,
       category: article.category || generationForm.category || undefined,
+      language: article.language || generationForm.language || "en",
       coverImage: article.coverImage || generationForm.coverImage || undefined,
       tags: parseCommaSeparated(tagInput),
       type: articleType,
@@ -787,7 +801,7 @@ export default function ArticleWorkbench({
                   />
                 </Field>
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-3">
                   <Field label="Author name">
                     <input
                       value={generationForm.authorName}
@@ -808,6 +822,21 @@ export default function ArticleWorkbench({
                       placeholder="Trade policy"
                       className={inputClassName}
                     />
+                  </Field>
+                  <Field label="Language">
+                    <select
+                      value={generationForm.language}
+                      onChange={(event) =>
+                        updateGenerationField("language", event.target.value)
+                      }
+                      className={inputClassName}
+                    >
+                      {LANGUAGE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
                 </div>
 
@@ -1134,7 +1163,7 @@ export default function ArticleWorkbench({
                 />
               </Field>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <Field label="Tags">
                   <input
                     value={tagInput}
@@ -1161,6 +1190,21 @@ export default function ArticleWorkbench({
                     list="cms-category-options"
                     className={inputClassName}
                   />
+                </Field>
+                <Field label="Language">
+                  <select
+                    value={article.language || "en"}
+                    onChange={(event) =>
+                      updateArticleField("language", event.target.value)
+                    }
+                    className={inputClassName}
+                  >
+                    {LANGUAGE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
                 <Field label="Status">
                   <select

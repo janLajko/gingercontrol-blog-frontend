@@ -12,6 +12,7 @@ import {
   Newspaper,
   PlusCircle,
   Sparkles,
+  UsersRound,
 } from "lucide-react";
 
 import { cn } from "@/app/lib/utils";
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/cms/billing/products", label: "Billing", icon: CreditCard },
   { href: "/cms/billing/user-billing", label: "User Billing", icon: CreditCard },
   { href: "/cms/api-keys", label: "API Keys", icon: KeyRound },
+  { href: "/cms/usermanage", label: "user manage", icon: UsersRound },
 ];
 
 export default function CmsShell({ children }: CmsShellProps) {
@@ -116,6 +118,7 @@ export default function CmsShell({ children }: CmsShellProps) {
                 <QuickLink href="/cms/billing/products">Billing Products</QuickLink>
                 <QuickLink href="/cms/billing/user-billing">User Billing</QuickLink>
                 <QuickLink href="/cms/api-keys">API Keys</QuickLink>
+                <QuickLink href="/cms/usermanage">User Manage</QuickLink>
               </div>
             </div>
 
